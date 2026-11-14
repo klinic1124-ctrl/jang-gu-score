@@ -14,6 +14,11 @@ describe('PRESETS 데이터', () => {
     for (const id of ids) assert.match(id, /^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
+  test("프리셋에 구음만 '국'으로 덮어쓴 칸(tteok:국)이 없다 — guk 타법을 쓴다", () => {
+    for (const p of PRESETS) assert.ok(!/(tteok|kung)!?:국/.test(JSON.stringify(p)), p.id);
+    assert.ok(GOBEOP.some((p) => JSON.stringify(p).includes('guk')));
+  });
+
   test('필수 장단이 들어 있다', () => {
     const need = [
       'sangnyeongsan', 'seryeongsan', 'dodeuri', 'taryeong',
@@ -120,7 +125,7 @@ describe('PRESETS 데이터', () => {
     assert.equal(m.beats.length, 24);
     assert.deepEqual(p.meter.grouping, [6, 6, 6, 6]);
     assert.ok(m.beats.every((b) => b.slots.length === 3));
-    assert.deepEqual(m.beats[1].slots[0], { t: 'tteok', g: '국' });
+    assert.deepEqual(m.beats[1].slots[0], { t: 'guk' });
   });
 
   test('교재 엇모리는 3+2+3+2 혼합박이고 박 칸 수가 units를 따른다(16분 박만 6칸)', () => {
@@ -251,7 +256,8 @@ describe('sectionFromPreset', () => {
     const s = sectionFromPreset('gobeop-jinyangjo');
     const back = normalizeScore(JSON.parse(JSON.stringify(createScore({ sections: [s] }))));
     assert.equal(back.sections[0].tempoMax, null);
-    assert.equal(back.sections[0].measures[0].beats[1].slots[0].g, '국');
+    assert.equal(back.sections[0].measures[0].beats[1].slots[0].t, 'guk');
+    assert.equal(back.sections[0].measures[0].beats[3].slots[0].g, undefined);
     const h = normalizeScore(JSON.parse(JSON.stringify(createScore({ sections: [sectionFromPreset('gobeop-hwimori')] }))));
     assert.equal(h.sections[0].tempoMax, 160);
     assert.equal(h.sections[0].measures[0].beats[2].slots[1].g, '딱');

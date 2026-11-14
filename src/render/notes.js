@@ -99,7 +99,7 @@ export function analyzeBeat(sec, beat, style = 'banju') {
       const p = P[j];
       const n = P[j + 1] - p;
       const slot = beat.slots[p];
-      const on = !!slot && voicesOf(slot, style)[dir > 0 ? 'up' : 'down'];
+      const on = !!slot && voicesOf(slot)[dir > 0 ? 'up' : 'down'];
       const last = segs[segs.length - 1];
       if (on) segs.push({ p, n, slot });
       else if (last && last.rest) last.n += n;
@@ -272,7 +272,7 @@ export function drawBeat(g, info, xOf, lineY, { style = 'banju', onAttack = null
     const { p, x } = h;
     const st = STROKES[p.slot.t];
     const sc = st.soft ? 0.72 : 1;
-    noteHead(g, x, lineY, { hollow: p.base >= 4, scale: sc, rim: !!st.rim });
+    noteHead(g, x, lineY, { hollow: p.base >= 4, scale: sc, rim: !!(st.rim || st.mute) });
     h.sc = sc;
     const dotX = x + (h.up && h.upFlags ? 11 : 8);
     for (let d = 0; d < p.dots; d += 1) el('circle', { cx: r2(dotX + d * 4), cy: r2(lineY - 3.5), r: 1.5, class: 'jg-dot' }, g);

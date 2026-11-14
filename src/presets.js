@@ -292,7 +292,7 @@ export const PRESETS = [
   // ───────────────────────── 산조·민요 반주 (교재) ─────────────────────────
   // 「한국의 장단 III」 제4장 장구 장단의 리듬보와 부호·구음 표를 사진으로 보고 옮겼다.
   // 표의 한 칸 = 분박 칸 하나. 부호 대응: ⊖ 덩(deong), ○ 궁(kung), ─ 따(deok), ─+작은 '기' 기닥(gideok),
-  // ⊗ 떡/국(tteok), ◎ 구궁(gugung), 卌 따드락(ttadeurak), ⊛(원 안 별표) 변죽 따드락(byeondeurak),
+  // ⊗ 떡(tteok, 채편 변죽)·국(guk, 북편 반뮤트), ◎ 구궁(gugung), 卌 따드락(ttadeurak), ⊛(원 안 별표) 변죽 따드락(byeondeurak),
   // ⊕ 드르덩(deureudeong), ······ 더러러러(deoreo). 구음이 기본과 다르면 ':구음'으로 적었다(기덩·구덩은 소리는 덩).
   {
     id: 'gobeop-jinyangjo',
@@ -305,10 +305,10 @@ export const PRESETS = [
       {
         name: '기본',
         pattern: [
-          'deong,-,- tteok:국,-,- tteok:국,-,- tteok:국,-,- tteok,-,- tteok,-,-',
-          'gugung,-,- tteok:국,-,- tteok:국,-,- tteok:국,-,- deong:구덩,byeondeurak,- byeondeurak,-,byeondeurak',
-          'gugung,-,- tteok:국,-,- tteok:국,-,- tteok:국,-,- tteok,-,- -,-,-',
-          'gugung,-,- tteok:국,-,- tteok:국,-,- tteok:국,-,- deong:구덩,kung,- gugung,-,kung',
+          'deong,-,- guk,-,- guk,-,- guk,-,- tteok,-,- tteok,-,-',
+          'gugung,-,- guk,-,- guk,-,- guk,-,- deong:구덩,byeondeurak,- byeondeurak,-,byeondeurak',
+          'gugung,-,- guk,-,- guk,-,- guk,-,- tteok,-,- -,-,-',
+          'gugung,-,- guk,-,- guk,-,- guk,-,- deong:구덩,kung,- gugung,-,kung',
         ].join(' '),
       },
     ],
@@ -323,10 +323,10 @@ export const PRESETS = [
     tempo: 90,
     tempoRange: [72, 108],
     variants: [
-      { name: '기본', pattern: 'deong tteok:국 deok tteok:국 deok deok tteok:국 tteok:국 tteok! tteok:국 tteok:국 tteok:국' },
-      { name: '변형 1', pattern: 'deong:구덩 tteok:국 deok tteok:국 deok ttadeurak,deok tteok:국 kung tteok! tteok:국 tteok:국 tteok:국' },
-      { name: '변형 2', pattern: 'deong:구덩 kung ttadeurak tteok:국 deok ttadeurak,deok tteok:국 tteok:국 tteok tteok:국 ttadeurak ttadeurak,deok' },
-      { name: '변형 3', pattern: 'gugung kung ttadeurak tteok:국 ttadeurak ttadeurak,deok tteok:국 tteok:국 tteok tteok:국 gugung kung' },
+      { name: '기본', pattern: 'deong guk deok guk deok deok guk guk tteok! guk guk guk' },
+      { name: '변형 1', pattern: 'deong:구덩 guk deok guk deok ttadeurak,deok guk kung tteok! guk guk guk' },
+      { name: '변형 2', pattern: 'deong:구덩 kung ttadeurak guk deok ttadeurak,deok guk guk tteok guk ttadeurak ttadeurak,deok' },
+      { name: '변형 3', pattern: 'gugung kung ttadeurak guk ttadeurak ttadeurak,deok guk guk tteok guk gugung kung' },
     ],
     verified: false,
     source: '「한국의 장단 III」 제4장 장구 장단, 120쪽(12/4, ♩≒72~108). 인쇄가 흐려 따드락의 작은 글자(따드)와 변형 1 제6박의 \'따드닥다\'를 분명히 읽지 못해 기본 구음(따드락·따)으로 둠',
@@ -342,7 +342,7 @@ export const PRESETS = [
       { name: '기본', pattern: 'deong:기덩,-,deok gugung,-,deok gugung,kung,tteok! kung,-,kung' },
       { name: '변형 1', pattern: 'deureudeong,kung,ttadeurak gugung,kung,ttadeurak gugung,kung,tteok! kung,-,kung' },
       { name: '변형 2', pattern: 'deong:기덩,-,tteok -,byeondeurak,tteok:따 gugung,kung,tteok! kung,-,kung' },
-      { name: '변형 3', pattern: 'deong,kung,- gugung,-,- deong:구덩,-,tteok! tteok:국,-,tteok:국' },
+      { name: '변형 3', pattern: 'deong,kung,- gugung,-,- deong:구덩,-,tteok! guk,-,guk' },
     ],
     verified: true,
     source: '「한국의 장단 III」 제4장 장구 장단, 122쪽(12/8, ♩.≒50~60)',
@@ -355,7 +355,7 @@ export const PRESETS = [
     tempo: 100,
     tempoRange: [80, 120],
     variants: [
-      { name: '기본', pattern: 'deong:기덩,-,- deong:기덩,-,- deong:기덩,-,byeondeurak tteok:국,deok,-' },
+      { name: '기본', pattern: 'deong:기덩,-,- deong:기덩,-,- deong:기덩,-,byeondeurak guk,deok,-' },
       { name: '변형 1', pattern: 'deong:더덩,kung,- gugung,kung,- gugung,-,ttadeurak kung,ttadeurak,-' },
       { name: '변형 2', pattern: 'deong:기덩,deong,- deureudeong:드르더,deong,- tteok,-,tteok -,kung,-' },
       { name: '변형 3', pattern: 'deong:기덩,kung,- gugung,-,ttadeurak gugung,-,tteok -,kung,-' },
@@ -375,7 +375,7 @@ export const PRESETS = [
       { name: '변형 1', pattern: 'kung,- ttadeurak,deok kung,deok:딱 kung,-' },
       { name: '변형 2', pattern: 'deong,- -,- ttadeurak,- deok,-' },
       { name: '변형 3', pattern: 'deong,- -,- deong,- -,-' },
-      { name: '변형 4', pattern: 'deong,- deok,deok kung,deok:딱 kung:국,-' },
+      { name: '변형 4', pattern: 'deong,- deok,deok kung,deok:딱 guk,-' },
       { name: '변형 5', pattern: 'deok,kung -,deok kung,deok:딱 kung,-' },
       { name: '변형 6', pattern: 'deong,- deong,- kung,deok:딱 kung,-' },
     ],

@@ -55,6 +55,12 @@ function gung(ctx, dest, when, vol) {
   noiseBurst(ctx, dest, when, { type: 'lowpass', freq: 500, peak: 0.5 * vol, decay: 0.04 });
 }
 
+/** 국: 북편을 반쯤 막아 친 소리 — 울림 없이 짧게 끊기는 둔탁한 북소리(피치는 약간 높게). */
+function guk(ctx, dest, when, vol) {
+  tone(ctx, dest, when, { from: 125, to: 80, sweep: 0.04, peak: 0.6 * vol, decay: 0.1 });
+  noiseBurst(ctx, dest, when, { type: 'lowpass', freq: 450, peak: 0.45 * vol, decay: 0.035 });
+}
+
 /** 채편: 밴드패스 노이즈 '딱' + 짧은 고음 톤. */
 function chae(ctx, dest, when, vol, decay = 0.11) {
   noiseBurst(ctx, dest, when, { type: 'bandpass', freq: 2400, q: 1.1, peak: 0.8 * vol, decay });
@@ -74,7 +80,7 @@ function graceLeads(def) {
 
 /**
  * 타법 하나를 when(컨텍스트 시각)에 합성한다. 재생·미리듣기·오프라인 렌더 공용.
- * 타법 플래그로 처리: gung/chae = 치는 편, rim = 채편 변죽 음색, grace = 앞 꾸밈음 개수, roll/soft = 굴림·약하게.
+ * 타법 플래그로 처리: gung/chae = 치는 편, rim = 채편 변죽 음색, grace = 앞 꾸밈음 개수, roll/soft = 굴림·약하게, mute = 북편 반뮤트.
  * opts: accent, dur(이 타점의 길이, 굴림용), notBefore(꾸밈음이 이 시각보다 앞서지 않게)
  */
 export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0.25, notBefore = 0 } = {}) {
@@ -102,7 +108,8 @@ export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0
       else strike(ctx, dest, graceAt, vol * 0.4, 0.05);
     }
   }
-  if (def.gung) gung(ctx, dest, when, def.chae ? vol * 0.85 : vol);
+  if (def.mute) guk(ctx, dest, when, vol);
+  else if (def.gung) gung(ctx, dest, when, def.chae ? vol * 0.85 : vol);
   if (def.chae) strike(ctx, dest, when, (def.soft ? 0.35 : 1) * (def.gung ? vol * 0.85 : vol));
 }
 

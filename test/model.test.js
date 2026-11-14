@@ -730,9 +730,27 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
     assert.equal(new Set(keys).size, keys.length);
   });
 
+  test('국(guk): 북편 반뮤트 타법, 단축키 q, 떡과 구별', () => {
+    assert.ok(STROKES.guk.gung && !STROKES.guk.chae && STROKES.guk.mute);
+    assert.equal(STROKES.guk.key, 'q');
+    assert.equal(gueumOf({ t: 'guk' }, 'banju'), '국');
+    assert.ok(!STROKES.tteok.mute && STROKES.tteok.chae);
+  });
+
+  test('normalizeScore: 옛 파일의 tteok/kung + g:"국" 은 guk으로(강세 유지), 일반 떡은 그대로', () => {
+    const s = sec();
+    s.meter.beats = 1;
+    s.measures[0].beats = [{ units: null, slots: [{ t: 'tteok', g: '국', accent: true }, { t: 'kung', g: ' 국 ' }, { t: 'tteok' }, { t: 'tteok', g: '따' }] }];
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots;
+    assert.deepEqual(out[0], { t: 'guk', accent: true });
+    assert.deepEqual(out[1], { t: 'guk' });
+    assert.deepEqual(out[2], { t: 'tteok' });
+    assert.deepEqual(out[3], { t: 'tteok', g: '따' });
+  });
+
   test('패턴의 :구음 은 slot.g, !:구음 은 강세와 구음을 함께', () => {
-    const m = measureFromPattern('tteok:국 deok!:딱,deong:기덩 kung!');
-    assert.deepEqual(m.beats[0].slots[0], { t: 'tteok', g: '국' });
+    const m = measureFromPattern('tteok:따 deok!:딱,deong:기덩 kung!');
+    assert.deepEqual(m.beats[0].slots[0], { t: 'tteok', g: '따' });
     assert.deepEqual(m.beats[1].slots[0], { t: 'deok', accent: true, g: '딱' });
     assert.deepEqual(m.beats[1].slots[1], { t: 'deong', g: '기덩' });
     assert.deepEqual(m.beats[2].slots[0], { t: 'kung', accent: true });
@@ -750,8 +768,8 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
   });
 
   test('gueumOf: slot.g가 체계별 기본 구음보다 우선', () => {
-    assert.equal(gueumOf({ t: 'tteok', g: '국' }, 'banju'), '국');
-    assert.equal(gueumOf({ t: 'tteok', g: '국' }, 'minsok'), '국');
+    assert.equal(gueumOf({ t: 'tteok', g: '따' }, 'banju'), '따');
+    assert.equal(gueumOf({ t: 'guk' }, 'minsok'), '국');
     assert.equal(gueumOf({ t: 'deok', g: '딱' }, 'samul'), '딱');
     assert.equal(gueumOf({ t: 'tteok' }, 'minsok'), '떡');
   });
@@ -816,14 +834,14 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
   test('normalizeScore: slot.g는 앞뒤 공백 제거·8자 제한, 빈 값·문자열 아님은 버린다', () => {
     const s = sec();
     s.measures[0].beats[0].slots = [
-      { t: 'tteok', g: '  국 ' },
+      { t: 'tteok', g: '  따 ' },
       { t: 'deok', g: '가나다라마바사아자차' },
       { t: 'kung', g: '   ' },
     ];
     s.measures[0].beats.push({ units: null, slots: [{ t: 'deong', g: 5 }] });
     s.meter.beats = 2;
     const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats;
-    assert.deepEqual(out[0].slots[0], { t: 'tteok', g: '국' });
+    assert.deepEqual(out[0].slots[0], { t: 'tteok', g: '따' });
     assert.equal(out[0].slots[1].g, '가나다라마바사아');
     assert.equal(out[0].slots[1].g.length, 8);
     assert.deepEqual(out[0].slots[2], { t: 'kung' });
@@ -867,17 +885,17 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
 
   test('setSlot은 g(구음)를 보존하고 복사본을 넣는다', () => {
     const sc = createScore({ sections: [createSection({ meter: { beats: 1, slots: 2 } })] });
-    const slot = { t: 'tteok', g: '국', accent: true };
+    const slot = { t: 'tteok', g: '따', accent: true };
     setSlot(sc, { s: 0, m: 0, b: 0, i: 1 }, slot);
     const got = getSlot(sc, { s: 0, m: 0, b: 0, i: 1 });
-    assert.deepEqual(got, { t: 'tteok', g: '국', accent: true });
+    assert.deepEqual(got, { t: 'tteok', g: '따', accent: true });
     assert.notEqual(got, slot);
     slot.g = '떡';
-    assert.equal(got.g, '국');
+    assert.equal(got.g, '따');
   });
 
   test('slot.g·memo·tempoMax·meter.slots가 직렬화 왕복에서 유지된다', () => {
-    const s = createSection({ meter: { beats: 2, division: 3, slots: 3 }, tempo: 80, tempoMax: 120, measures: [measureFromPattern('tteok:국,-,deok!:딱 kung,-,-')] });
+    const s = createSection({ meter: { beats: 2, division: 3, slots: 3 }, tempo: 80, tempoMax: 120, measures: [measureFromPattern('guk,-,deok!:딱 kung,-,-')] });
     s.measures[0].memo = '맺는 가락';
     const back = deserialize(serialize(createScore({ sections: [s] })));
     const b = back.sections[0];

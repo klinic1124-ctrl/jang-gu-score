@@ -40,7 +40,7 @@
 // Slot
 //   t: StrokeId                  STROKES의 키
 //   accent: boolean (선택)       강세
-//   g: string (선택)             이 칸만의 구음(기본 구음을 덮어씀). 예: ⊗에 '국', ─에 '딱'
+//   g: string (선택)             이 칸만의 구음(기본 구음을 덮어씀). 예: ─에 '딱'
 //
 // Position (선택/재생 위치 주소): { s: 구간, m: 장단, b: 박, i: 분박 칸 } — 모두 0부터.
 
@@ -57,8 +57,9 @@ export const STROKES = {
   deoreo: { id: 'deoreo', label: '더러러러', gueum: { banju: '더러러러', samul: '더르르르', minsok: '더러러러' }, gung: false, chae: true,  key: 'r', desc: '굴림채 — 채를 굴려서', roll: true },
   deo:    { id: 'deo',    label: '더',       gueum: { banju: '더',       samul: '더',       minsok: '더' },       gung: false, chae: true,  key: 'e', desc: '채편을 약하게 찍어서', soft: true },
   rest:   { id: 'rest',   label: '쉼',       gueum: { banju: '',         samul: '',         minsok: '' },         gung: false, chae: false, key: 's', desc: '쉼(소리 없음)' },
-  // 아래는 민속악(산조·민요 반주) 교재식 표기에서 쓰는 타법. grace = 앞 꾸밈음 개수, rim = 변죽(채편 가장자리)
-  tteok:        { id: 'tteok',        label: '떡',     gueum: { banju: '떡',     samul: '떡',     minsok: '떡' },     gung: false, chae: true,  key: 't', desc: '채편 변죽을 막아 치는 소리(떡·국)', rim: true },
+  // 아래는 민속악(산조·민요 반주) 교재식 표기에서 쓰는 타법. grace = 앞 꾸밈음 개수, rim = 변죽(채편 가장자리), mute = 반뮤트(⊗는 떡=채편 변죽, 국=북편 반뮤트)
+  tteok:        { id: 'tteok',        label: '떡',     gueum: { banju: '떡',     samul: '떡',     minsok: '떡' },     gung: false, chae: true,  key: 't', desc: '채편 변죽을 막아 치는 소리', rim: true },
+  guk:          { id: 'guk',          label: '국',     gueum: { banju: '국',     samul: '국',     minsok: '국' },     gung: true,  chae: false, key: 'q', desc: '북편을 반쯤 막아 치는 소리(쿵·궁의 반뮤트)', mute: true },
   gugung:       { id: 'gugung',       label: '구궁',   gueum: { banju: '구궁',   samul: '구궁',   minsok: '구궁' },   gung: true,  chae: false, key: 'u', desc: '겹궁 — 북편을 꾸밈음과 함께', grace: 1 },
   ttadeurak:    { id: 'ttadeurak',    label: '따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true,  key: 'f', desc: '채편을 짧게 굴려 치기', grace: 2 },
   byeondeurak:  { id: 'byeondeurak',  label: '변죽 따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true, key: 'v', desc: '채편 변죽을 짧게 굴려 치기', grace: 2, rim: true },
@@ -111,7 +112,7 @@ export function createScore({ title = '제목 없음', author = '', memo = '', s
 
 /**
  * 간결한 표기에서 한 장단을 만든다. 박은 공백으로, 분박 칸은 쉼표로 구분.
- * 칸 값: 타법 id, '-'(빈 칸), 뒤에 '!'를 붙이면 강세, ':구음'을 붙이면 그 칸만의 구음(예: tteok:국, deok!:딱).
+ * 칸 값: 타법 id, '-'(빈 칸), 뒤에 '!'를 붙이면 강세, ':구음'을 붙이면 그 칸만의 구음(예: deok!:딱, deong:기덩).
  * 박 뒤에 '/n'을 붙이면 units 지정.
  * 예: measureFromPattern('deong - gideok kung deoreo -')
  *     measureFromPattern('deong,-,gideok kung,-,deoreo')
@@ -332,10 +333,12 @@ export function normalizeScore(data) {
                 slots: beat.slots.map((slot) => {
                   if (!slot) return null;
                   if (!STROKES[slot.t]) throw new Error(`알 수 없는 타법: ${slot.t}`);
-                  const out = { t: slot.t };
+                  // 옛 파일: ⊗(떡·쿵)에 구음만 '국'으로 덮어쓴 칸 → 국 타법
+                  const old = (slot.t === 'tteok' || slot.t === 'kung') && typeof slot.g === 'string' && slot.g.trim() === '국';
+                  const out = { t: old ? 'guk' : slot.t };
                   if (slot.accent && slot.t !== 'rest') out.accent = true;
                   const g = typeof slot.g === 'string' ? slot.g.trim().slice(0, 8) : '';
-                  if (g) out.g = g;
+                  if (g && !old) out.g = g;
                   return out;
                 }),
               };

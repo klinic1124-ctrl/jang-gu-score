@@ -21,11 +21,10 @@ export function displayParts(slot, style = 'banju') {
   return p;
 }
 
-/** 리듬보에서 이 칸을 위(채편)·아래(궁편) 어느 성부에 그릴지. 변죽 소리를 '국'으로 적은 칸은 궁편 쪽(교재 표기). */
-export function voicesOf(slot, style = 'banju') {
+/** 리듬보에서 이 칸을 위(채편)·아래(궁편) 어느 성부에 그릴지(국은 gung이라 아래). */
+export function voicesOf(slot) {
   const st = slot && STROKES[slot.t];
   if (!st || slot.t === 'rest') return { up: false, down: false };
-  if (st.rim && !st.gung && GUNG_SOUND.test(displayParts(slot, style).main)) return { up: false, down: true };
   return { up: !!st.chae, down: !!st.gung };
 }
 
