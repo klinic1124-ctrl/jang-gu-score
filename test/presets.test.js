@@ -198,7 +198,7 @@ describe('sectionFromPreset', () => {
     assert.equal(s.jangdan, '중모리');
     assert.equal(s.measures.length, 1);
     assert.equal(s.meter.beats, 12);
-    assert.equal(s.tempo, getPreset('jungmori').tempo);
+    assert.equal(s.tempo, getPreset('jungmori').tempoRange[0]);
     assert.ok(s.id);
   });
 

@@ -495,7 +495,7 @@ export function sectionFromPreset(id, { variant = 0, measures = 1, name = '' } =
       grouping: preset.meter.grouping ? [...preset.meter.grouping] : null,
       slots: preset.meter.slots ?? 1,
     },
-    tempo: preset.tempo,
+    tempo: preset.tempoRange ? preset.tempoRange[0] : preset.tempo, // 범위가 있으면 악보에 '≒최소~최대'로 적히도록 최솟값으로 시작
     tempoMax: preset.tempoRange ? preset.tempoRange[1] : null,
     measures: list,
   });
