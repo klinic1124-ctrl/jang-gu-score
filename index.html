@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>장구 악보</title>
+  <meta name="description" content="장구 정간보·리듬보를 그리고 들어 보는 편집기">
+  <link rel="stylesheet" href="src/styles.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="toolbar">
+      <div class="bar">
+        <span class="brand" aria-hidden="true">장구 악보</span>
+        <button type="button" class="title-btn" data-action="info" id="score-title" title="악보 정보(제목·작성자·메모) 편집">제목 없음</button>
+        <span class="spacer"></span>
+        <div class="group" role="group" aria-label="파일">
+          <button type="button" data-action="new" title="새 악보 시작">새 악보</button>
+          <button type="button" data-action="open" title="파일 열기 (Ctrl+O)">열기</button>
+          <button type="button" data-action="save" title="파일로 저장 (Ctrl+S)">저장</button>
+          <button type="button" data-action="png" title="PNG 그림으로 내보내기">PNG</button>
+          <button type="button" data-action="print" title="인쇄 또는 PDF로 저장 (Ctrl+P)">인쇄</button>
+        </div>
+        <button type="button" class="icon-btn" data-action="help" aria-label="도움말" title="도움말 (?)">?</button>
+      </div>
+
+      <div class="bar">
+        <div class="group" role="group" aria-label="실행 취소">
+          <button type="button" data-action="undo" id="btn-undo" title="실행 취소 (Ctrl+Z)">↶ 취소</button>
+          <button type="button" data-action="redo" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z / Ctrl+Y)">↷ 다시</button>
+        </div>
+
+        <div class="segmented" role="radiogroup" aria-label="보기">
+          <label><input type="radio" name="view" value="vertical"><span>세로 정간보</span></label>
+          <label><input type="radio" name="view" value="horizontal"><span>가로 정간보</span></label>
+          <label><input type="radio" name="view" value="staff"><span>리듬보</span></label>
+        </div>
+
+        <div class="group" role="group" aria-label="구음">
+          <label class="check"><input type="checkbox" id="opt-gueum"> 구음</label>
+          <select id="opt-gueum-style" aria-label="구음 체계">
+            <option value="banju">반주식 (덩·덕·쿵)</option>
+            <option value="samul">사물놀이식 (덩·따·궁)</option>
+          </select>
+        </div>
+
+        <div class="group" role="group" aria-label="확대">
+          <button type="button" class="icon-btn" data-action="zoom-out" aria-label="축소" title="축소 (-)">−</button>
+          <button type="button" class="zoom-label" data-action="zoom-reset" id="zoom-label" title="원래 크기로">100%</button>
+          <button type="button" class="icon-btn" data-action="zoom-in" aria-label="확대" title="확대 (+)">+</button>
+        </div>
+
+        <span class="spacer"></span>
+
+        <div class="group play-group" role="group" aria-label="재생">
+          <button type="button" class="primary" data-action="play" id="btn-play" title="처음부터 재생 / 정지 (Space)">▶ 재생</button>
+          <button type="button" data-action="play-from" title="선택한 장단부터 재생 (Shift+Space)">선택 장단부터</button>
+          <label class="tempo" title="빠르기 배율">
+            <span>빠르기</span>
+            <input type="range" id="opt-tempo" min="50" max="150" step="5" value="100" aria-label="빠르기 배율">
+            <output id="tempo-label">100%</output>
+          </label>
+          <button type="button" data-action="loop" id="btn-loop" aria-pressed="false" title="끝나면 처음부터 반복">반복</button>
+          <button type="button" data-action="metronome" id="btn-metronome" aria-pressed="false" title="박마다 메트로놈 소리">메트로놈</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="palette" role="toolbar" aria-label="타법 입력">
+      <div class="palette-strokes" id="palette-strokes"></div>
+      <span class="divider" aria-hidden="true"></span>
+      <button type="button" class="pal-btn" data-action="accent" id="btn-accent" aria-pressed="false" title="강세 붙이기/떼기 (.)">
+        <span class="pal-label">강세</span><kbd>.</kbd>
+      </button>
+      <button type="button" class="pal-btn" data-action="clear" title="칸 비우기 (Backspace / Delete)">
+        <span class="pal-label">비우기</span><kbd>⌫</kbd>
+      </button>
+      <span class="divider" aria-hidden="true"></span>
+      <div class="division" role="group" aria-label="분박 — 선택한 박의 칸 수">
+        <span class="division-title">분박</span>
+        <div id="palette-division"></div>
+      </div>
+    </div>
+
+    <main class="workspace">
+      <div class="score-scroll" id="score-scroll" tabindex="0" aria-label="악보 — 칸을 눌러 선택하고 키보드로 입력합니다">
+        <div class="paper" id="score-host"></div>
+      </div>
+
+      <aside class="inspector" aria-label="편집 패널">
+        <section class="panel">
+          <h2>선택 위치</h2>
+          <p class="pos-info" id="pos-info">—</p>
+        </section>
+
+        <section class="panel">
+          <h2>장단</h2>
+          <div class="btn-row">
+            <button type="button" data-action="measure-add" title="선택한 장단 뒤에 추가 (Enter)">뒤에 추가</button>
+            <button type="button" data-action="measure-dup" title="선택한 장단 복제 (Ctrl+D)">복제</button>
+            <button type="button" class="danger" data-action="measure-del" title="선택한 장단 삭제 (Ctrl+Delete)">삭제</button>
+          </div>
+          <label class="field-inline">
+            <span>추가할 때</span>
+            <select id="opt-add-fill">
+              <option value="empty">빈 장단</option>
+              <option value="preset">기본 가락으로 채움</option>
+            </select>
+          </label>
+          <label class="field-inline">
+            <span>반복</span>
+            <input type="number" id="measure-repeat" min="1" max="99" step="1" value="1">
+            <span class="unit">번</span>
+          </label>
+          <div class="field-inline">
+            <label for="variant-select">가락</label>
+            <select id="variant-select"></select>
+            <button type="button" data-action="measure-fill" id="btn-fill" title="선택한 장단을 이 가락으로 채우기">채우기</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>구간</h2>
+          <p class="section-info" id="section-info">—</p>
+          <div class="btn-row">
+            <button type="button" data-action="section-edit" title="구간 이름·빠르기 편집">설정</button>
+            <button type="button" data-action="section-up" id="btn-sec-up" title="구간을 위로">위로</button>
+            <button type="button" data-action="section-down" id="btn-sec-down" title="구간을 아래로">아래로</button>
+            <button type="button" class="danger" data-action="section-del" id="btn-sec-del" title="구간 삭제">삭제</button>
+          </div>
+          <button type="button" class="wide" data-action="section-add">+ 구간 추가</button>
+        </section>
+
+        <section class="panel">
+          <h2>입력</h2>
+          <label class="check"><input type="checkbox" id="opt-advance"> 입력 후 다음 칸으로</label>
+          <label class="check"><input type="checkbox" id="opt-preview"> 입력할 때 소리 듣기</label>
+        </section>
+      </aside>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- 새 악보 / 구간 추가 -->
+  <dialog id="dlg-section" aria-labelledby="dlg-section-title">
+    <form id="form-section" novalidate>
+      <h2 id="dlg-section-title">구간 추가</h2>
+      <div class="dlg-body two-col">
+        <div class="col">
+          <label class="field" id="sd-title-row">
+            <span>악보 제목</span>
+            <input type="text" id="sd-title" maxlength="100" placeholder="예: 영산회상 반주">
+          </label>
+          <label class="field">
+            <span>장단</span>
+            <select id="sd-preset"></select>
+          </label>
+          <div id="sd-preset-fields">
+            <label class="field">
+              <span>가락</span>
+              <select id="sd-variant"></select>
+            </label>
+            <label class="field">
+              <span>장단 채우기</span>
+              <select id="sd-fill">
+                <option value="all">모든 장단을 가락으로</option>
+                <option value="first">첫 장단만 가락, 나머지는 빈 장단</option>
+                <option value="none">모두 빈 장단</option>
+              </select>
+            </label>
+          </div>
+          <fieldset id="sd-custom-fields" class="custom" hidden>
+            <legend>사용자 장단</legend>
+            <label class="field"><span>장단 이름</span><input type="text" id="sd-jangdan" maxlength="40" placeholder="예: 사용자 장단"></label>
+            <div class="row">
+              <label class="field"><span>박 수</span><input type="number" id="sd-beats" min="1" max="24" value="4"></label>
+              <label class="field"><span>기본 분박</span>
+                <select id="sd-division">
+                  <option value="2">2분박 (한 박 = 4분음표)</option>
+                  <option value="3">3분박 (한 박 = 점4분음표)</option>
+                </select>
+              </label>
+            </div>
+            <label class="field"><span>박 묶음 (선택)</span><input type="text" id="sd-grouping" placeholder="예: 3,3 — 비워 두면 묶지 않음"></label>
+          </fieldset>
+          <div class="row">
+            <label class="field"><span>구간 이름</span><input type="text" id="sd-name" maxlength="40" placeholder="예: 1장"></label>
+          </div>
+          <div class="row">
+            <label class="field"><span>빠르기 (박/분)</span><input type="number" id="sd-tempo" min="10" max="400" value="60" required></label>
+            <label class="field"><span>장단 수</span><input type="number" id="sd-measures" min="1" max="200" value="4" required></label>
+          </div>
+          <p class="hint" id="sd-info"></p>
+        </div>
+        <div class="col">
+          <span class="preview-title">미리 보기</span>
+          <div class="preview" id="sd-preview"></div>
+        </div>
+      </div>
+      <p class="form-error" id="sd-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" data-close>취소</button>
+        <button type="submit" class="primary" id="sd-submit">추가</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 구간 설정 -->
+  <dialog id="dlg-section-edit" aria-labelledby="dlg-se-title">
+    <form id="form-section-edit" novalidate>
+      <h2 id="dlg-se-title">구간 설정</h2>
+      <div class="dlg-body">
+        <p class="hint" id="se-info"></p>
+        <label class="field"><span>구간 이름</span><input type="text" id="se-name" maxlength="40" placeholder="예: 1장"></label>
+        <label class="field"><span>빠르기 (박/분)</span><input type="number" id="se-tempo" min="10" max="400" required></label>
+        <p class="hint" id="se-tempo-hint"></p>
+      </div>
+      <p class="form-error" id="se-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" data-close>취소</button>
+        <button type="submit" class="primary">적용</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 악보 정보 -->
+  <dialog id="dlg-info" aria-labelledby="dlg-info-title">
+    <form id="form-info">
+      <h2 id="dlg-info-title">악보 정보</h2>
+      <div class="dlg-body">
+        <label class="field"><span>제목</span><input type="text" id="info-title" maxlength="100"></label>
+        <label class="field"><span>작성자</span><input type="text" id="info-author" maxlength="60"></label>
+        <label class="field"><span>메모</span><textarea id="info-memo" rows="4" maxlength="2000" placeholder="곡 설명, 연주 메모 등"></textarea></label>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" data-close>취소</button>
+        <button type="submit" class="primary">적용</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 도움말 -->
+  <dialog id="dlg-help" class="wide" aria-labelledby="dlg-help-title">
+    <div class="dlg-help">
+      <h2 id="dlg-help-title">도움말</h2>
+      <div class="dlg-body help-body">
+        <section>
+          <h3>타법(부호)</h3>
+          <table class="help-table" id="help-strokes">
+            <thead><tr><th>부호</th><th>이름</th><th>구음 (반주 / 사물)</th><th>키</th><th>설명</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="hint">한글 입력 상태에서도 단축키가 동작합니다. 빈 칸은 앞 소리가 이어지는 자리입니다.</p>
+        </section>
+        <section>
+          <h3>단축키</h3>
+          <table class="help-table keys">
+            <tbody>
+              <tr><td><kbd>D</kbd> <kbd>K</kbd> <kbd>J</kbd> …</td><td>선택한 칸에 타법 입력</td></tr>
+              <tr><td><kbd>.</kbd></td><td>강세 붙이기/떼기</td></tr>
+              <tr><td><kbd>Backspace</kbd> <kbd>Delete</kbd></td><td>칸 비우기</td></tr>
+              <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>6</kbd></td><td>선택한 박을 그 수만큼 나누기(분박)</td></tr>
+              <tr><td>방향키</td><td>칸 이동 — 세로 정간보: <kbd>↑</kbd><kbd>↓</kbd> 앞/뒤 칸, <kbd>←</kbd> 다음 장단, <kbd>→</kbd> 앞 장단<br>가로 정간보·리듬보: <kbd>←</kbd><kbd>→</kbd> 앞/뒤 칸, <kbd>↑</kbd><kbd>↓</kbd> 앞/다음 장단</td></tr>
+              <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>다음 박 / 이전 박</td></tr>
+              <tr><td><kbd>Enter</kbd></td><td>선택한 장단 뒤에 장단 추가</td></tr>
+              <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>장단 복제</td></tr>
+              <tr><td><kbd>Ctrl</kbd>+<kbd>Delete</kbd></td><td>장단 삭제</td></tr>
+              <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>실행 취소</td></tr>
+              <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>다시 실행</td></tr>
+              <tr><td><kbd>Space</kbd></td><td>처음부터 재생 / 정지</td></tr>
+              <tr><td><kbd>Shift</kbd>+<kbd>Space</kbd></td><td>선택한 장단부터 재생</td></tr>
+              <tr><td><kbd>Esc</kbd></td><td>재생 정지</td></tr>
+              <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>확대 / 축소</td></tr>
+              <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>파일로 저장 / 파일 열기</td></tr>
+              <tr><td><kbd>?</kbd></td><td>이 도움말</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <section>
+          <h3>알아 두기</h3>
+          <ul class="help-list">
+            <li>작업 내용은 이 브라우저에 자동으로 저장됩니다. 다른 컴퓨터로 옮기려면 <b>저장</b>으로 파일(.janggu.json)을 받아 두세요.</li>
+            <li>구간 머리말(구간 이름)을 누르면 그 구간의 이름과 빠르기를 바꿀 수 있습니다.</li>
+            <li><b>인쇄</b>에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>
+          </ul>
+        </section>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" class="primary" data-close>닫기</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>
