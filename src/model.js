@@ -4,8 +4,10 @@
 //   version: 1
 //   title, author, memo: string
 //   settings: {
-//     view: 'vertical' | 'horizontal' | 'staff'   세로 정간보 / 가로 정간보 / 한 줄 리듬보
-//     gueumStyle: 'banju' | 'samul'               구음 체계(반주: 덩·덕·쿵 / 사물: 덩·따·궁)
+//     view: 'vertical' | 'horizontal' | 'staff' | 'combined'
+//                                   세로 정간보 / 가로 정간보 / 한 줄 리듬보 / 리듬보+부호·구음 표(교재식)
+//     symbolStyle: 'jeongak' | 'minsok'           부호 체계. 정악식(⦶ │ ○ …) / 민속악식(⊖ ─ ○ ⊗ …)
+//     gueumStyle: 'banju' | 'samul' | 'minsok'    구음 체계(반주: 덩·덕·쿵 / 사물: 덩·따·궁 / 민속악: 덩·따·궁·떡)
 //     showGueum: boolean                          부호 옆(아래)에 구음 병기
 //   }
 //   sections: Section[]
@@ -18,13 +20,16 @@
 //     beats: number              한 장단의 박(정간) 수
 //     division: 2 | 3            기본 분박. 3이면 한 박 = 점4분음표, 2이면 4분음표
 //     grouping: number[] | null  한 장단 안의 박 묶음(합 = beats). 예: 상령산 [6,4,4,6]
+//     slots: number              새 빈 장단을 만들 때 박마다 넣을 분박 칸 수(기본 1). 교재식 표의 고른 격자용
 //   }
-//   tempo: number                1분당 박 수(기본 박 기준)
+//   tempo: number                1분당 박 수(기본 박 기준). 재생에 쓰는 값
+//   tempoMax: number | null      빠르기 범위의 위쪽 값. 있으면 '≒tempo~tempoMax'로 표시만 한다
 //   measures: Measure[]
 //
 // Measure (한 장단)
 //   id: string
 //   repeat: number               반복 횟수(1 이상)
+//   memo: string (선택)          이 장단 아래에 적는 메모(변형 가락 등). 없으면 ''
 //   beats: Beat[]                길이 = meter.beats
 //
 // Beat (한 박 = 한 정간)
@@ -35,6 +40,7 @@
 // Slot
 //   t: StrokeId                  STROKES의 키
 //   accent: boolean (선택)       강세
+//   g: string (선택)             이 칸만의 구음(기본 구음을 덮어씀). 예: ⊗에 '국', ─에 '딱'
 //
 // Position (선택/재생 위치 주소): { s: 구간, m: 장단, b: 박, i: 분박 칸 } — 모두 0부터.
 
@@ -44,13 +50,19 @@ export const SLOT_COUNTS = [1, 2, 3, 4, 6];
 
 /** 타법(부호) 정의. gung/chae는 어느 편을 치는지, key는 입력 단축키(KeyboardEvent.code 기준 문자). */
 export const STROKES = {
-  deong:  { id: 'deong',  label: '덩',       gueum: { banju: '덩',       samul: '덩' },       gung: true,  chae: true,  key: 'd', desc: '합장단 — 북편과 채편을 함께' },
-  kung:   { id: 'kung',   label: '쿵',       gueum: { banju: '쿵',       samul: '궁' },       gung: true,  chae: false, key: 'k', desc: '북편' },
-  deok:   { id: 'deok',   label: '덕',       gueum: { banju: '덕',       samul: '따' },       gung: false, chae: true,  key: 'j', desc: '채편' },
-  gideok: { id: 'gideok', label: '기덕',     gueum: { banju: '기덕',     samul: '기닥' },     gung: false, chae: true,  key: 'g', desc: '겹채 — 채편을 꾸밈음과 함께', grace: true },
-  deoreo: { id: 'deoreo', label: '더러러러', gueum: { banju: '더러러러', samul: '더르르르' }, gung: false, chae: true,  key: 'r', desc: '굴림채 — 채를 굴려서', roll: true },
-  deo:    { id: 'deo',    label: '더',       gueum: { banju: '더',       samul: '더' },       gung: false, chae: true,  key: 'e', desc: '채편을 약하게 찍어서', soft: true },
-  rest:   { id: 'rest',   label: '쉼',       gueum: { banju: '',         samul: '' },         gung: false, chae: false, key: 's', desc: '쉼(소리 없음)' },
+  deong:  { id: 'deong',  label: '덩',       gueum: { banju: '덩',       samul: '덩',       minsok: '덩' },       gung: true,  chae: true,  key: 'd', desc: '합장단 — 북편과 채편을 함께' },
+  kung:   { id: 'kung',   label: '쿵',       gueum: { banju: '쿵',       samul: '궁',       minsok: '궁' },       gung: true,  chae: false, key: 'k', desc: '북편' },
+  deok:   { id: 'deok',   label: '덕',       gueum: { banju: '덕',       samul: '따',       minsok: '따' },       gung: false, chae: true,  key: 'j', desc: '채편' },
+  gideok: { id: 'gideok', label: '기덕',     gueum: { banju: '기덕',     samul: '기닥',     minsok: '기닥' },     gung: false, chae: true,  key: 'g', desc: '겹채 — 채편을 꾸밈음과 함께', grace: 1 },
+  deoreo: { id: 'deoreo', label: '더러러러', gueum: { banju: '더러러러', samul: '더르르르', minsok: '더러러러' }, gung: false, chae: true,  key: 'r', desc: '굴림채 — 채를 굴려서', roll: true },
+  deo:    { id: 'deo',    label: '더',       gueum: { banju: '더',       samul: '더',       minsok: '더' },       gung: false, chae: true,  key: 'e', desc: '채편을 약하게 찍어서', soft: true },
+  rest:   { id: 'rest',   label: '쉼',       gueum: { banju: '',         samul: '',         minsok: '' },         gung: false, chae: false, key: 's', desc: '쉼(소리 없음)' },
+  // 아래는 민속악(산조·민요 반주) 교재식 표기에서 쓰는 타법. grace = 앞 꾸밈음 개수, rim = 변죽(채편 가장자리)
+  tteok:        { id: 'tteok',        label: '떡',     gueum: { banju: '떡',     samul: '떡',     minsok: '떡' },     gung: false, chae: true,  key: 't', desc: '채편 변죽을 막아 치는 소리(떡·국)', rim: true },
+  gugung:       { id: 'gugung',       label: '구궁',   gueum: { banju: '구궁',   samul: '구궁',   minsok: '구궁' },   gung: true,  chae: false, key: 'u', desc: '겹궁 — 북편을 꾸밈음과 함께', grace: 1 },
+  ttadeurak:    { id: 'ttadeurak',    label: '따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true,  key: 'f', desc: '채편을 짧게 굴려 치기', grace: 2 },
+  byeondeurak:  { id: 'byeondeurak',  label: '변죽 따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true, key: 'v', desc: '채편 변죽을 짧게 굴려 치기', grace: 2, rim: true },
+  deureudeong:  { id: 'deureudeong',  label: '드르덩', gueum: { banju: '드르덩', samul: '드르덩', minsok: '드르덩' }, gung: true,  chae: true,  key: 'w', desc: '채를 굴린 뒤 합장단', grace: 2 },
 };
 
 export const STROKE_IDS = Object.keys(STROKES);
@@ -69,18 +81,19 @@ export function createBeat(slotCount = 1, units = null) {
 
 export function createMeasure(meter) {
   const beats = [];
-  for (let b = 0; b < meter.beats; b += 1) beats.push(createBeat(1));
-  return { id: newId('m'), repeat: 1, beats };
+  for (let b = 0; b < meter.beats; b += 1) beats.push(createBeat(meter.slots ?? 1));
+  return { id: newId('m'), repeat: 1, memo: '', beats };
 }
 
-export function createSection({ name = '', jangdan = '', meter, tempo = 60, measures = null } = {}) {
-  const m = { beats: 6, division: 2, grouping: null, ...meter };
+export function createSection({ name = '', jangdan = '', meter, tempo = 60, tempoMax = null, measures = null } = {}) {
+  const m = { beats: 6, division: 2, grouping: null, slots: 1, ...meter };
   return {
     id: newId('s'),
     name,
     jangdan,
     meter: m,
     tempo,
+    tempoMax,
     measures: measures ?? [createMeasure(m)],
   };
 }
@@ -91,14 +104,15 @@ export function createScore({ title = '제목 없음', author = '', memo = '', s
     title,
     author,
     memo,
-    settings: { view: 'vertical', gueumStyle: 'banju', showGueum: true },
+    settings: { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true },
     sections: sections ?? [createSection({ name: '', jangdan: '도드리', meter: { beats: 6, division: 2 } })],
   };
 }
 
 /**
  * 간결한 표기에서 한 장단을 만든다. 박은 공백으로, 분박 칸은 쉼표로 구분.
- * 칸 값: 타법 id, '-'(빈 칸), 뒤에 '!'를 붙이면 강세. 박 뒤에 '/n'을 붙이면 units 지정.
+ * 칸 값: 타법 id, '-'(빈 칸), 뒤에 '!'를 붙이면 강세, ':구음'을 붙이면 그 칸만의 구음(예: tteok:국, deok!:딱).
+ * 박 뒤에 '/n'을 붙이면 units 지정.
  * 예: measureFromPattern('deong - gideok kung deoreo -')
  *     measureFromPattern('deong,-,gideok kung,-,deoreo')
  */
@@ -110,14 +124,18 @@ export function measureFromPattern(pattern) {
     if (um) { body = um[1]; units = Number(um[2]); }
     const slots = body.split(',').map((raw) => {
       if (raw === '-' || raw === '') return null;
-      const accent = raw.endsWith('!');
-      const t = accent ? raw.slice(0, -1) : raw;
+      const [head, g] = raw.split(':');
+      const accent = head.endsWith('!');
+      const t = accent ? head.slice(0, -1) : head;
       if (!STROKES[t]) throw new Error(`알 수 없는 타법: ${raw}`);
-      return accent ? { t, accent: true } : { t };
+      const slot = { t };
+      if (accent) slot.accent = true;
+      if (g) slot.g = g;
+      return slot;
     });
     return { units, slots };
   });
-  return { id: newId('m'), repeat: 1, beats };
+  return { id: newId('m'), repeat: 1, memo: '', beats };
 }
 
 // ---------- 조회 ----------
@@ -136,10 +154,22 @@ export function beatUnits(section, beat) {
   return beat.units ?? section.meter.division;
 }
 
-/** 구음 문자열. 빈 칸·쉼은 ''. */
+/** 구음 문자열. 칸에 직접 적은 구음(slot.g)이 있으면 그것, 없으면 타법의 기본 구음. 빈 칸은 ''. */
 export function gueumOf(slot, style = 'banju') {
   if (!slot) return '';
-  return STROKES[slot.t]?.gueum[style] ?? '';
+  if (slot.g) return slot.g;
+  const g = STROKES[slot.t]?.gueum;
+  return g?.[style] ?? g?.banju ?? '';
+}
+
+/**
+ * 구음을 작은 글씨(꾸밈) 부분과 큰 글씨 부분으로 나눈다. 교재식 표기용.
+ * 꾸밈음이 있는 타법(grace)은 마지막 글자만 크게: 구궁 → {small:'구', main:'궁'}, 따드락 → {small:'따드', main:'락'}.
+ */
+export function gueumParts(slot, style = 'banju') {
+  const word = gueumOf(slot, style);
+  if (!slot || !STROKES[slot.t]?.grace || word.length < 2) return { small: '', main: word };
+  return { small: word.slice(0, -1), main: word.slice(-1) };
 }
 
 /** 위치가 악보 범위 안에 들도록 보정한다. */
@@ -268,8 +298,9 @@ export function normalizeScore(data) {
     author: String(data.author ?? ''),
     memo: String(data.memo ?? ''),
     settings: {
-      view: ['vertical', 'horizontal', 'staff'].includes(data.settings?.view) ? data.settings.view : 'vertical',
-      gueumStyle: data.settings?.gueumStyle === 'samul' ? 'samul' : 'banju',
+      view: ['vertical', 'horizontal', 'staff', 'combined'].includes(data.settings?.view) ? data.settings.view : 'vertical',
+      symbolStyle: data.settings?.symbolStyle === 'minsok' ? 'minsok' : 'jeongak',
+      gueumStyle: ['samul', 'minsok'].includes(data.settings?.gueumStyle) ? data.settings.gueumStyle : 'banju',
       showGueum: data.settings?.showGueum !== false,
     },
     sections: data.sections.map((sec) => {
@@ -278,18 +309,22 @@ export function normalizeScore(data) {
       const grouping = Array.isArray(sec.meter?.grouping)
         && sec.meter.grouping.every((n) => Number.isInteger(n) && n > 0)
         && sec.meter.grouping.reduce((a, n) => a + n, 0) === beats ? [...sec.meter.grouping] : null;
-      const meter = { beats, division: sec.meter?.division === 3 ? 3 : 2, grouping };
+      const meter = { beats, division: sec.meter?.division === 3 ? 3 : 2, grouping, slots: SLOT_COUNTS.includes(sec.meter?.slots) ? sec.meter.slots : 1 };
+      const tempo = Math.min(400, Math.max(10, Number(sec.tempo) || 60));
+      const tempoMax = Number(sec.tempoMax) > tempo ? Math.min(400, Number(sec.tempoMax)) : null;
       return {
         id: String(sec.id ?? newId('s')),
         name: String(sec.name ?? ''),
         jangdan: String(sec.jangdan ?? ''),
         meter,
-        tempo: Math.min(400, Math.max(10, Number(sec.tempo) || 60)),
+        tempo,
+        tempoMax,
         measures: sec.measures.map((mea) => {
           if (!Array.isArray(mea.beats) || mea.beats.length !== beats) throw new Error('장단의 박 수가 맞지 않습니다');
           return {
             id: String(mea.id ?? newId('m')),
             repeat: Math.max(1, Math.floor(Number(mea.repeat) || 1)),
+            memo: String(mea.memo ?? '').slice(0, 200),
             beats: mea.beats.map((beat) => {
               if (!Array.isArray(beat.slots) || !SLOT_COUNTS.includes(beat.slots.length)) throw new Error('분박 칸 수가 올바르지 않습니다');
               return {
@@ -297,7 +332,11 @@ export function normalizeScore(data) {
                 slots: beat.slots.map((slot) => {
                   if (!slot) return null;
                   if (!STROKES[slot.t]) throw new Error(`알 수 없는 타법: ${slot.t}`);
-                  return slot.accent ? { t: slot.t, accent: true } : { t: slot.t };
+                  const out = { t: slot.t };
+                  if (slot.accent && slot.t !== 'rest') out.accent = true;
+                  const g = typeof slot.g === 'string' ? slot.g.trim().slice(0, 8) : '';
+                  if (g) out.g = g;
+                  return out;
                 }),
               };
             }),

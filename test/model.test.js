@@ -85,7 +85,7 @@ describe('생성 함수', () => {
 
   test('createSection은 meter 기본값을 채운다', () => {
     const s = createSection({ meter: { beats: 4 } });
-    assert.deepEqual(s.meter, { beats: 4, division: 2, grouping: null });
+    assert.deepEqual(s.meter, { beats: 4, division: 2, grouping: null, slots: 1 });
     assert.equal(s.measures.length, 1);
     assert.equal(s.measures[0].beats.length, 4);
   });
@@ -94,7 +94,7 @@ describe('생성 함수', () => {
     const sc = createScore();
     assert.equal(sc.version, SCORE_VERSION);
     assert.equal(sc.sections.length, 1);
-    assert.deepEqual(sc.settings, { view: 'vertical', gueumStyle: 'banju', showGueum: true });
+    assert.deepEqual(sc.settings, { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true });
   });
 
   test('createBeat', () => {
@@ -304,7 +304,7 @@ describe('insert/duplicate/deleteMeasure 경계', () => {
 describe('serialize / deserialize', () => {
   function richScore() {
     const sc = createScore({ title: '왕복', author: '나', memo: '메모' });
-    sc.settings = { view: 'staff', gueumStyle: 'samul', showGueum: false };
+    sc.settings = { view: 'staff', symbolStyle: 'jeongak', gueumStyle: 'samul', showGueum: false };
     sc.sections = [
       createSection({
         name: '엇모리', jangdan: '엇모리', meter: { beats: 4, division: 2, grouping: null }, tempo: 120,
@@ -394,7 +394,7 @@ describe('normalizeScore', () => {
     assert.equal(sc.title, '제목 없음');
     assert.equal(sc.author, '');
     assert.equal(sc.memo, '');
-    assert.deepEqual(sc.settings, { view: 'vertical', gueumStyle: 'banju', showGueum: true });
+    assert.deepEqual(sc.settings, { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true });
   });
 
   test('설정값 보정: 잘못된 view·gueumStyle은 기본값, showGueum은 false만 끈다', () => {
@@ -404,7 +404,7 @@ describe('normalizeScore', () => {
     assert.equal(sc.settings.gueumStyle, 'banju');
     assert.equal(sc.settings.showGueum, true);
     const off = normalizeScore({ sections: [baseSection()], settings: { view: 'horizontal', gueumStyle: 'samul', showGueum: false } });
-    assert.deepEqual(off.settings, { view: 'horizontal', gueumStyle: 'samul', showGueum: false });
+    assert.deepEqual(off.settings, { view: 'horizontal', symbolStyle: 'jeongak', gueumStyle: 'samul', showGueum: false });
   });
 
   test('tempo는 10~400으로 제한, 숫자가 아니면 60', () => {
