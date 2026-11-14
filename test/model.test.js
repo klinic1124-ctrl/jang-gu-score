@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   SCORE_VERSION, SLOT_COUNTS, STROKES,
   createBeat, createMeasure, createSection, createScore,
-  measureFromPattern, clone, getSlot, getBeat, beatUnits, gueumOf,
+  measureFromPattern, clone, getSlot, getBeat, beatUnits, gueumOf, gueumParts,
   clampPos, allPositions, samePos, movePos,
   setSlot, toggleAccent, setBeatSlotCount,
   insertMeasure, duplicateMeasure, moveMeasure, deleteMeasure, insertSection, deleteSection,
@@ -710,5 +710,180 @@ describe('buildTimeline', () => {
     const c = clone(sc);
     c.sections[0].measures[0].beats[0].slots[0].t = 'kung';
     assert.equal(sc.sections[0].measures[0].beats[0].slots[0].t, 'deong');
+  });
+});
+
+describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', () => {
+  const sec = (extra = {}) => ({
+    id: 's1',
+    name: '',
+    jangdan: '자진모리',
+    meter: { beats: 1, division: 3, grouping: null },
+    tempo: 90,
+    measures: [{ id: 'm1', repeat: 1, beats: [{ units: null, slots: [{ t: 'deong' }, null, null] }] }],
+    ...extra,
+  });
+
+  test('새 타법이 STROKES에 있고 단축키가 겹치지 않는다', () => {
+    for (const id of ['tteok', 'gugung', 'ttadeurak', 'byeondeurak', 'deureudeong']) assert.ok(STROKES[id], id);
+    const keys = Object.values(STROKES).map((s) => s.key);
+    assert.equal(new Set(keys).size, keys.length);
+  });
+
+  test('패턴의 :구음 은 slot.g, !:구음 은 강세와 구음을 함께', () => {
+    const m = measureFromPattern('tteok:국 deok!:딱,deong:기덩 kung!');
+    assert.deepEqual(m.beats[0].slots[0], { t: 'tteok', g: '국' });
+    assert.deepEqual(m.beats[1].slots[0], { t: 'deok', accent: true, g: '딱' });
+    assert.deepEqual(m.beats[1].slots[1], { t: 'deong', g: '기덩' });
+    assert.deepEqual(m.beats[2].slots[0], { t: 'kung', accent: true });
+    assert.ok(!('g' in m.beats[2].slots[0]));
+  });
+
+  test('패턴의 :구음 과 /n units를 함께 쓸 수 있다', () => {
+    const m = measureFromPattern('kung,-,gugung:구구궁/3');
+    assert.equal(m.beats[0].units, 3);
+    assert.deepEqual(m.beats[0].slots[2], { t: 'gugung', g: '구구궁' });
+  });
+
+  test('패턴에서 :구음 앞의 타법이 틀리면 오류', () => {
+    assert.throws(() => measureFromPattern('nope:국'), /알 수 없는 타법/);
+  });
+
+  test('gueumOf: slot.g가 체계별 기본 구음보다 우선', () => {
+    assert.equal(gueumOf({ t: 'tteok', g: '국' }, 'banju'), '국');
+    assert.equal(gueumOf({ t: 'tteok', g: '국' }, 'minsok'), '국');
+    assert.equal(gueumOf({ t: 'deok', g: '딱' }, 'samul'), '딱');
+    assert.equal(gueumOf({ t: 'tteok' }, 'minsok'), '떡');
+  });
+
+  test("gueumOf: style 'minsok'", () => {
+    assert.equal(gueumOf({ t: 'deok' }, 'minsok'), '따');
+    assert.equal(gueumOf({ t: 'kung' }, 'minsok'), '궁');
+    assert.equal(gueumOf({ t: 'gideok' }, 'minsok'), '기닥');
+    assert.equal(gueumOf({ t: 'deong' }, 'minsok'), '덩');
+  });
+
+  test('gueumOf: 없는 style은 banju 구음으로 대체', () => {
+    assert.equal(gueumOf({ t: 'kung' }, 'nope'), '쿵');
+    assert.equal(gueumOf({ t: 'deok' }, undefined), '덕');
+  });
+
+  test('gueumParts: 꾸밈음 타법만 마지막 글자를 크게 나눈다', () => {
+    assert.deepEqual(gueumParts({ t: 'gugung' }, 'minsok'), { small: '구', main: '궁' });
+    assert.deepEqual(gueumParts({ t: 'ttadeurak' }), { small: '따드', main: '락' });
+    assert.deepEqual(gueumParts({ t: 'gideok' }, 'minsok'), { small: '기', main: '닥' });
+    assert.deepEqual(gueumParts({ t: 'gugung', g: '구구궁' }), { small: '구구', main: '궁' });
+    // grace가 없는 타법은 여러 글자여도 나누지 않는다
+    assert.deepEqual(gueumParts({ t: 'deoreo' }), { small: '', main: '더러러러' });
+    assert.deepEqual(gueumParts({ t: 'deong', g: '기덩' }), { small: '', main: '기덩' });
+  });
+
+  test('gueumParts: 한 글자 구음과 빈 칸', () => {
+    assert.deepEqual(gueumParts({ t: 'gugung', g: '궁' }), { small: '', main: '궁' });
+    assert.deepEqual(gueumParts({ t: 'kung' }, 'samul'), { small: '', main: '궁' });
+    assert.deepEqual(gueumParts(null), { small: '', main: '' });
+    assert.deepEqual(gueumParts({ t: 'rest' }), { small: '', main: '' });
+  });
+
+  test('createMeasure: meter.slots만큼 칸을 둔 빈 박', () => {
+    const m = createMeasure({ beats: 4, slots: 3 });
+    assert.equal(m.beats.length, 4);
+    assert.ok(m.beats.every((b) => b.slots.length === 3 && b.slots.every((x) => x === null)));
+    assert.equal(m.memo, '');
+    assert.ok(createMeasure({ beats: 2 }).beats.every((b) => b.slots.length === 1));
+  });
+
+  test('createSection: slots를 지정하면 첫 장단도 그 칸 수, tempoMax 기본 null', () => {
+    const s = createSection({ meter: { beats: 3, division: 3, slots: 3 } });
+    assert.ok(s.measures[0].beats.every((b) => b.slots.length === 3));
+    assert.equal(s.tempoMax, null);
+    assert.equal(createSection({ meter: { beats: 2 }, tempo: 80, tempoMax: 120 }).tempoMax, 120);
+  });
+
+  test("normalizeScore: symbolStyle은 'minsok'만 인정", () => {
+    assert.equal(normalizeScore({ sections: [sec()], settings: { symbolStyle: 'minsok' } }).settings.symbolStyle, 'minsok');
+    assert.equal(normalizeScore({ sections: [sec()], settings: { symbolStyle: 'x' } }).settings.symbolStyle, 'jeongak');
+    assert.equal(normalizeScore({ sections: [sec()] }).settings.symbolStyle, 'jeongak');
+  });
+
+  test("normalizeScore: view 'combined'·gueumStyle 'minsok' 유지", () => {
+    const sc = normalizeScore({ sections: [sec()], settings: { view: 'combined', gueumStyle: 'minsok' } });
+    assert.equal(sc.settings.view, 'combined');
+    assert.equal(sc.settings.gueumStyle, 'minsok');
+    assert.equal(normalizeScore({ sections: [sec()], settings: { view: 'staff' } }).settings.view, 'staff');
+  });
+
+  test('normalizeScore: slot.g는 앞뒤 공백 제거·8자 제한, 빈 값·문자열 아님은 버린다', () => {
+    const s = sec();
+    s.measures[0].beats[0].slots = [
+      { t: 'tteok', g: '  국 ' },
+      { t: 'deok', g: '가나다라마바사아자차' },
+      { t: 'kung', g: '   ' },
+    ];
+    s.measures[0].beats.push({ units: null, slots: [{ t: 'deong', g: 5 }] });
+    s.meter.beats = 2;
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats;
+    assert.deepEqual(out[0].slots[0], { t: 'tteok', g: '국' });
+    assert.equal(out[0].slots[1].g, '가나다라마바사아');
+    assert.equal(out[0].slots[1].g.length, 8);
+    assert.deepEqual(out[0].slots[2], { t: 'kung' });
+    assert.deepEqual(out[1].slots[0], { t: 'deong' });
+  });
+
+  test('normalizeScore: 쉼에는 강세를 남기지 않지만 구음은 남긴다', () => {
+    const s = sec();
+    s.measures[0].beats[0].slots = [{ t: 'rest', accent: true, g: '쉬' }, null, null];
+    assert.deepEqual(normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots[0], { t: 'rest', g: '쉬' });
+  });
+
+  test('normalizeScore: measure.memo는 문자열로, 200자 제한, 없으면 빈 문자열', () => {
+    const s = sec();
+    s.measures.push({ id: 'm2', repeat: 1, memo: 'x'.repeat(300), beats: [{ units: null, slots: [null] }] });
+    s.measures.push({ id: 'm3', repeat: 1, memo: 42, beats: [{ units: null, slots: [null] }] });
+    const ms = normalizeScore({ sections: [s] }).sections[0].measures;
+    assert.equal(ms[0].memo, '');
+    assert.equal(ms[1].memo.length, 200);
+    assert.equal(ms[2].memo, '42');
+  });
+
+  test('normalizeScore: tempoMax는 tempo보다 클 때만, 400 제한', () => {
+    const t = (tempo, tempoMax) => normalizeScore({ sections: [sec({ tempo, tempoMax })] }).sections[0].tempoMax;
+    assert.equal(t(90, 120), 120);
+    assert.equal(t(90, 90), null);
+    assert.equal(t(90, 60), null);
+    assert.equal(t(90, 'x'), null);
+    assert.equal(t(90, undefined), null);
+    assert.equal(t(90, 999), 400);
+  });
+
+  test('normalizeScore: meter.slots는 SLOT_COUNTS 중 하나만, 아니면 1', () => {
+    const slots = (v) => normalizeScore({ sections: [sec({ meter: { beats: 1, division: 3, grouping: null, slots: v } })] }).sections[0].meter.slots;
+    assert.equal(slots(3), 3);
+    assert.equal(slots(6), 6);
+    assert.equal(slots(5), 1);
+    assert.equal(slots('3'), 1);
+    assert.equal(slots(undefined), 1);
+  });
+
+  test('setSlot은 g(구음)를 보존하고 복사본을 넣는다', () => {
+    const sc = createScore({ sections: [createSection({ meter: { beats: 1, slots: 2 } })] });
+    const slot = { t: 'tteok', g: '국', accent: true };
+    setSlot(sc, { s: 0, m: 0, b: 0, i: 1 }, slot);
+    const got = getSlot(sc, { s: 0, m: 0, b: 0, i: 1 });
+    assert.deepEqual(got, { t: 'tteok', g: '국', accent: true });
+    assert.notEqual(got, slot);
+    slot.g = '떡';
+    assert.equal(got.g, '국');
+  });
+
+  test('slot.g·memo·tempoMax·meter.slots가 직렬화 왕복에서 유지된다', () => {
+    const s = createSection({ meter: { beats: 2, division: 3, slots: 3 }, tempo: 80, tempoMax: 120, measures: [measureFromPattern('tteok:국,-,deok!:딱 kung,-,-')] });
+    s.measures[0].memo = '맺는 가락';
+    const back = deserialize(serialize(createScore({ sections: [s] })));
+    const b = back.sections[0];
+    assert.equal(b.tempoMax, 120);
+    assert.equal(b.meter.slots, 3);
+    assert.equal(b.measures[0].memo, '맺는 가락');
+    assert.deepEqual(b.measures[0].beats[0].slots[2], { t: 'deok', accent: true, g: '딱' });
   });
 });

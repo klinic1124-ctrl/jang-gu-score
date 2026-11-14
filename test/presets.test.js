@@ -1,14 +1,17 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { PRESETS, getPreset, sectionFromPreset, measureFromPreset } from '../src/presets.js';
-import { measureFromPattern, SLOT_COUNTS, STROKES, normalizeScore, createScore, buildTimeline } from '../src/model.js';
+import { measureFromPattern, SLOT_COUNTS, STROKES, normalizeScore, createScore, createMeasure, buildTimeline } from '../src/model.js';
+
+const CATEGORIES = ['정악', '민속악', '산조·민요 반주'];
+const GOBEOP = PRESETS.filter((p) => p.category === '산조·민요 반주');
 
 describe('PRESETS 데이터', () => {
   test('프리셋이 있고 id가 유일하다', () => {
     assert.ok(PRESETS.length >= 10);
     const ids = PRESETS.map((p) => p.id);
     assert.equal(new Set(ids).size, ids.length);
-    for (const id of ids) assert.match(id, /^[a-z0-9]+$/);
+    for (const id of ids) assert.match(id, /^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
   test('필수 장단이 들어 있다', () => {
@@ -23,7 +26,8 @@ describe('PRESETS 데이터', () => {
     describe(`${p.id} (${p.name})`, () => {
       test('메타데이터 형식', () => {
         assert.ok(p.name);
-        assert.ok(['정악', '민속악'].includes(p.category), p.category);
+        assert.ok(CATEGORIES.includes(p.category), p.category);
+        if (p.meter.slots !== undefined) assert.ok(SLOT_COUNTS.includes(p.meter.slots), `meter.slots ${p.meter.slots}`);
         assert.ok(Number.isInteger(p.meter.beats) && p.meter.beats >= 1);
         assert.ok([2, 3].includes(p.meter.division));
         assert.ok(Number.isFinite(p.tempo) && p.tempo >= 10 && p.tempo <= 400);
@@ -71,6 +75,68 @@ describe('PRESETS 데이터', () => {
       });
     });
   }
+
+  test('교재 장단(산조·민요 반주)이 모두 들어 있다', () => {
+    const need = ['jinyangjo', 'jungmori', 'jungjungmori', 'jajinmori', 'hwimori', 'eotmori', 'eotjungmori', 'semachi', 'dongsalpuri'];
+    for (const n of need) {
+      const p = getPreset(`gobeop-${n}`);
+      assert.ok(p, `gobeop-${n} 없음`);
+      assert.equal(p.category, '산조·민요 반주');
+    }
+    assert.equal(GOBEOP.length, need.length);
+  });
+
+  for (const p of GOBEOP) {
+    describe(`${p.id} 교재 규칙`, () => {
+      test('id 접두어·출처·이름', () => {
+        assert.match(p.id, /^gobeop-/);
+        assert.match(p.source, /「한국의 장단 III」 제4장 장구 장단, \d+쪽/);
+        assert.ok(!p.name.includes('교재'));
+      });
+
+      test('meter.slots가 있고 SLOT_COUNTS 중 하나', () => {
+        assert.ok(SLOT_COUNTS.includes(p.meter.slots));
+      });
+
+      test('박마다 칸 수가 SLOT_COUNTS 중 하나이고, units가 없는 박은 meter.slots의 배수(고른 격자)', () => {
+        p.variants.forEach((v) => {
+          for (const beat of measureFromPattern(v.pattern).beats) {
+            assert.ok(SLOT_COUNTS.includes(beat.slots.length), `${v.name}: ${beat.slots.length}칸`);
+            if (beat.units === null) assert.equal(beat.slots.length % p.meter.slots, 0, `${v.name}: ${beat.slots.length}칸`);
+          }
+        });
+      });
+
+      test('variant 이름이 겹치지 않고 첫 variant는 기본', () => {
+        assert.equal(p.variants[0].name, '기본');
+        assert.equal(new Set(p.variants.map((v) => v.name)).size, p.variants.length);
+      });
+    });
+  }
+
+  test('교재 진양조는 4각 24박 한 장단, 3분박 3칸', () => {
+    const p = getPreset('gobeop-jinyangjo');
+    const m = measureFromPreset('gobeop-jinyangjo');
+    assert.equal(m.beats.length, 24);
+    assert.deepEqual(p.meter.grouping, [6, 6, 6, 6]);
+    assert.ok(m.beats.every((b) => b.slots.length === 3));
+    assert.deepEqual(m.beats[1].slots[0], { t: 'tteok', g: '국' });
+  });
+
+  test('교재 엇모리는 3+2+3+2 혼합박이고 박 칸 수가 units를 따른다(16분 박만 6칸)', () => {
+    getPreset('gobeop-eotmori').variants.forEach((_, i) => {
+      const m = measureFromPreset('gobeop-eotmori', i);
+      assert.deepEqual(m.beats.map((b) => b.units), [3, 2, 3, 2]);
+      m.beats.forEach((b) => assert.ok(b.slots.length === b.units || b.slots.length === b.units * 2));
+    });
+  });
+
+  test('교재 세마치 맺음가락 이름과 칸별 구음', () => {
+    const p = getPreset('gobeop-semachi');
+    assert.ok(p.variants.some((v) => v.name.includes('한오백년, 농부가 등의 맺음가락')));
+    const m = measureFromPreset('gobeop-semachi', p.variants.length - 1);
+    assert.deepEqual(m.beats[1].slots[2], { t: 'tteok', g: '기떡' });
+  });
 
   test('엇모리는 3+2+3+2 혼합박(units)을 쓴다', () => {
     const m = measureFromPreset('eotmori');
@@ -126,9 +192,9 @@ describe('measureFromPreset', () => {
 });
 
 describe('sectionFromPreset', () => {
-  test('기본값: 장단 1개, 이름은 프리셋 이름', () => {
+  test('기본값: 장단 1개, 이름은 비우고 jangdan에 프리셋 이름', () => {
     const s = sectionFromPreset('jungmori');
-    assert.equal(s.name, '중모리');
+    assert.equal(s.name, '');
     assert.equal(s.jangdan, '중모리');
     assert.equal(s.measures.length, 1);
     assert.equal(s.meter.beats, 12);
@@ -165,6 +231,30 @@ describe('sectionFromPreset', () => {
 
   test('없는 프리셋은 오류', () => {
     assert.throws(() => sectionFromPreset('nope'), /알 수 없는 장단 프리셋/);
+  });
+
+  test('tempoMax = tempoRange[1], 범위가 없으면 null', () => {
+    assert.equal(sectionFromPreset('jungmori').tempoMax, 108);
+    assert.equal(sectionFromPreset('gobeop-hwimori').tempoMax, 160);
+    assert.equal(sectionFromPreset('dodeuri').tempoMax, null);
+  });
+
+  test('meter.slots: 프리셋 값, 없으면 1. 새 빈 장단도 그 칸 수', () => {
+    assert.equal(sectionFromPreset('gobeop-jajinmori').meter.slots, 3);
+    assert.equal(sectionFromPreset('gobeop-hwimori').meter.slots, 2);
+    assert.equal(sectionFromPreset('dodeuri').meter.slots, 1);
+    const s = sectionFromPreset('gobeop-semachi');
+    assert.ok(createMeasure(s.meter).beats.every((b) => b.slots.length === 3));
+  });
+
+  test('칸별 구음(slot.g)과 tempoMax가 정규화 왕복 뒤에도 남는다', () => {
+    const s = sectionFromPreset('gobeop-jinyangjo');
+    const back = normalizeScore(JSON.parse(JSON.stringify(createScore({ sections: [s] }))));
+    assert.equal(back.sections[0].tempoMax, null);
+    assert.equal(back.sections[0].measures[0].beats[1].slots[0].g, '국');
+    const h = normalizeScore(JSON.parse(JSON.stringify(createScore({ sections: [sectionFromPreset('gobeop-hwimori')] }))));
+    assert.equal(h.sections[0].tempoMax, 160);
+    assert.equal(h.sections[0].measures[0].beats[2].slots[1].g, '딱');
   });
 
   test('모든 프리셋·변형의 Section이 정규화 검증을 통과하고 시간표가 만들어진다', () => {
