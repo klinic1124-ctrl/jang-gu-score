@@ -1,0 +1,11 @@
+{
+  "name": "jang-gu-score",
+  "version": "0.1.0",
+  "description": "장구 악보(정간보·리듬보) 편집 웹앱",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test test/"
+  }
+}
