@@ -212,6 +212,16 @@ export function duplicateMeasure(score, s, m) {
   return copy;
 }
 
+/** 장단을 같은 구간 안에서 delta(-1 = 앞으로, +1 = 뒤로)만큼 옮긴다. 옮긴 뒤의 장단 번호를 돌려준다(끝이면 그대로). */
+export function moveMeasure(score, s, m, delta) {
+  const list = score.sections[s].measures;
+  const to = m + delta;
+  if (m < 0 || m >= list.length || to < 0 || to >= list.length) return m;
+  const [mea] = list.splice(m, 1);
+  list.splice(to, 0, mea);
+  return to;
+}
+
 /** 장단 삭제. 구간에 장단이 하나뿐이면 내용만 비운다. */
 export function deleteMeasure(score, s, m) {
   const sec = score.sections[s];

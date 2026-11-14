@@ -381,14 +381,22 @@ fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 
 /* ---------- 인쇄: 악보만, A4 ---------- */
 
+.print-scale input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.print-scale output { min-width: 3.5em; text-align: right; }
+.print-info { margin: 0; font-weight: 600; }
+
+/* 쪽 크기·방향은 앱이 #print-page-style로 덮어쓴다 */
 @page { size: A4; margin: 14mm 12mm; }
 
 @media print {
-  body { overflow: visible; background: #fff; }
+  :root, body { overflow: visible; background: #fff; }
   .app { display: block; height: auto; }
   .toolbar, .palette, .inspector, .toast, dialog { display: none !important; }
   .workspace { display: block; }
   .score-scroll { overflow: visible; padding: 0; scrollbar-gutter: auto; box-shadow: none !important; }
   .paper { padding: 0; border: 0; box-shadow: none; width: auto; background: #fff; --jg-paper: #fff; --jg-select: transparent; --jg-play: transparent; }
   .paper svg { width: 100% !important; height: auto !important; }
+  /* 인쇄용 SVG는 쪽마다 하나(줄 경계에서 나뉨) */
+  .paper svg.print-page { break-inside: avoid; break-after: page; }
+  .paper svg.print-page:last-child { break-after: auto; }
 }

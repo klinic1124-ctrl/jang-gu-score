@@ -6,7 +6,7 @@ import {
   measureFromPattern, clone, getSlot, getBeat, beatUnits, gueumOf,
   clampPos, allPositions, samePos, movePos,
   setSlot, toggleAccent, setBeatSlotCount,
-  insertMeasure, duplicateMeasure, deleteMeasure, insertSection, deleteSection,
+  insertMeasure, duplicateMeasure, moveMeasure, deleteMeasure, insertSection, deleteSection,
   serialize, deserialize, normalizeScore, buildTimeline,
 } from '../src/model.js';
 
@@ -238,6 +238,30 @@ describe('insert/duplicate/deleteMeasure 경계', () => {
     const sc = scoreOf(['deong', 'kung']);
     duplicateMeasure(sc, 0, 1);
     assert.deepEqual(lens(sc), ['deong', 'kung', 'kung']);
+  });
+
+  test('moveMeasure: 가운데 이동은 번호를 돌려주고 repeat·내용이 함께 옮겨진다', () => {
+    const sc = scoreOf(['deong', 'kung', 'deok']);
+    const mid = sc.sections[0].measures[1];
+    mid.repeat = 3;
+    assert.equal(moveMeasure(sc, 0, 1, 1), 2);
+    assert.deepEqual(lens(sc), ['deong', 'deok', 'kung']);
+    assert.equal(sc.sections[0].measures[2], mid);
+    assert.equal(sc.sections[0].measures[2].repeat, 3);
+    assert.equal(moveMeasure(sc, 0, 2, -1), 1);
+    assert.deepEqual(lens(sc), ['deong', 'kung', 'deok']);
+    assert.equal(moveMeasure(sc, 0, 1, -1), 0);
+    assert.deepEqual(lens(sc), ['kung', 'deong', 'deok']);
+  });
+
+  test('moveMeasure: 양 끝에서는 그대로, 다른 구간은 건드리지 않는다', () => {
+    const sc = scoreOf(['deong', 'kung']);
+    sc.sections.push(createSection({ meter: { beats: 1, division: 2 }, measures: [measureFromPattern('deok')] }));
+    assert.equal(moveMeasure(sc, 0, 0, -1), 0);
+    assert.equal(moveMeasure(sc, 0, 1, 1), 1);
+    assert.equal(moveMeasure(sc, 0, 9, 1), 9);
+    assert.deepEqual(lens(sc), ['deong', 'kung']);
+    assert.equal(sc.sections[1].measures.length, 1);
   });
 
   test('deleteMeasure: 중간·처음·끝 삭제', () => {

@@ -20,7 +20,7 @@
           <button type="button" data-action="open" title="파일 열기 (Ctrl+O)">열기</button>
           <button type="button" data-action="save" title="파일로 저장 (Ctrl+S)">저장</button>
           <button type="button" data-action="png" title="PNG 그림으로 내보내기">PNG</button>
-          <button type="button" data-action="print" title="인쇄 또는 PDF로 저장 (Ctrl+P)">인쇄</button>
+          <button type="button" data-action="print" title="인쇄 설정(크기·방향) 후 인쇄 또는 PDF로 저장">인쇄</button>
         </div>
         <button type="button" class="icon-btn" data-action="help" aria-label="도움말" title="도움말 (?)">?</button>
       </div>
@@ -100,6 +100,10 @@
             <button type="button" data-action="measure-add" title="선택한 장단 뒤에 추가 (Enter)">뒤에 추가</button>
             <button type="button" data-action="measure-dup" title="선택한 장단 복제 (Ctrl+D)">복제</button>
             <button type="button" class="danger" data-action="measure-del" title="선택한 장단 삭제 (Ctrl+Delete)">삭제</button>
+          </div>
+          <div class="btn-row">
+            <button type="button" data-action="measure-up" id="btn-mea-up" title="선택한 장단을 앞 장단과 맞바꾸기 (Alt+방향키)">앞으로</button>
+            <button type="button" data-action="measure-down" id="btn-mea-down" title="선택한 장단을 뒤 장단과 맞바꾸기 (Alt+방향키)">뒤로</button>
           </div>
           <label class="field-inline">
             <span>추가할 때</span>
@@ -243,6 +247,36 @@
     </form>
   </dialog>
 
+  <!-- 인쇄 설정 -->
+  <dialog id="dlg-print" aria-labelledby="dlg-print-title">
+    <form id="form-print">
+      <h2 id="dlg-print-title">인쇄 설정</h2>
+      <div class="dlg-body">
+        <label class="field print-scale">
+          <span>크기(배율)</span>
+          <div class="field-inline">
+            <input type="range" id="print-scale" min="50" max="150" step="5" value="100" aria-label="인쇄 배율">
+            <output id="print-scale-label">100%</output>
+          </div>
+        </label>
+        <div class="field">
+          <span>용지 방향 (A4)</span>
+          <div class="segmented" role="radiogroup" aria-label="용지 방향">
+            <label><input type="radio" name="print-orient" value="portrait"><span>세로</span></label>
+            <label><input type="radio" name="print-orient" value="landscape"><span>가로</span></label>
+          </div>
+        </div>
+        <p class="print-info" id="print-info" aria-live="polite"></p>
+        <p class="hint">배율을 줄이면 악보가 작아지고 한 줄에 장단이 더 많이 들어갑니다. 줄은 쪽 경계에서 잘리지 않고 다음 쪽으로 넘어갑니다.</p>
+        <div><button type="button" data-action="print-fit" title="화면에서 한 줄에 보이는 장단 수만큼 들어가는 가장 큰 배율로 맞춥니다">한 줄에 맞추기</button></div>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" data-close>취소</button>
+        <button type="submit" class="primary" id="btn-print-go">인쇄</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- 도움말 -->
   <dialog id="dlg-help" class="wide" aria-labelledby="dlg-help-title">
     <div class="dlg-help">
@@ -269,6 +303,7 @@
               <tr><td><kbd>Enter</kbd></td><td>선택한 장단 뒤에 장단 추가</td></tr>
               <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>장단 복제</td></tr>
               <tr><td><kbd>Ctrl</kbd>+<kbd>Delete</kbd></td><td>장단 삭제</td></tr>
+              <tr><td><kbd>Alt</kbd>+방향키</td><td>장단 순서 바꾸기 — 세로 정간보: <kbd>→</kbd> 앞으로, <kbd>←</kbd> 뒤로<br>가로 정간보·리듬보: <kbd>↑</kbd> 앞으로, <kbd>↓</kbd> 뒤로</td></tr>
               <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>실행 취소</td></tr>
               <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>다시 실행</td></tr>
               <tr><td><kbd>Space</kbd></td><td>처음부터 재생 / 정지</td></tr>
@@ -285,7 +320,7 @@
           <ul class="help-list">
             <li>작업 내용은 이 브라우저에 자동으로 저장됩니다. 다른 컴퓨터로 옮기려면 <b>저장</b>으로 파일(.janggu.json)을 받아 두세요.</li>
             <li>구간 머리말(구간 이름)을 누르면 그 구간의 이름과 빠르기를 바꿀 수 있습니다.</li>
-            <li><b>인쇄</b>에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>
+            <li><b>인쇄</b>를 누르면 크기(배율)와 용지 방향을 정할 수 있고, 배율을 줄이면 한 줄에 장단이 더 들어갑니다. 인쇄 대화상자에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>
           </ul>
         </section>
       </div>

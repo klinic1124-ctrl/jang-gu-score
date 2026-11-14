@@ -2,13 +2,14 @@
 import {
   STROKES, STROKE_IDS, SLOT_COUNTS, createScore, createSection, createMeasure, newId, clone,
   clampPos, movePos, getMeasure, getBeat, getSlot, setSlot, toggleAccent, setBeatSlotCount,
-  insertMeasure, duplicateMeasure, deleteMeasure, insertSection, deleteSection, serialize, deserialize,
+  insertMeasure, duplicateMeasure, moveMeasure, deleteMeasure, insertSection, deleteSection, serialize, deserialize,
 } from './model.js';
 import { renderScore, updateHighlights } from './render/index.js';
 import { Player } from './audio.js';
 import { PRESETS, getPreset, sectionFromPreset, measureFromPreset } from './presets.js';
 import { History } from './history.js';
 import * as io from './io.js';
+import { layoutPrint, pageSvgs, pageRule, analyze } from './print.js';
 
 const SCORE_KEY = 'janggu-score/score';
 const OPTS_KEY = 'janggu-score/options';
@@ -30,6 +31,7 @@ const state = {
   opts: {
     autoAdvance: true, previewSound: true, addFill: 'empty',
     zoom: 1, tempoScale: 1, loop: false, metronome: false,
+    printScale: 1, printLandscape: false,
   },
 };
 
@@ -75,6 +77,7 @@ function loadOptions() {
   } catch { /* 기본값 사용 */ }
   if (!ZOOMS.includes(state.opts.zoom)) state.opts.zoom = 1;
   state.opts.tempoScale = Math.min(1.5, Math.max(0.5, state.opts.tempoScale));
+  state.opts.printScale = Math.min(1.5, Math.max(0.5, Math.round(state.opts.printScale * 20) / 20));
 }
 
 function saveOptions() { io.storageSet(OPTS_KEY, JSON.stringify(state.opts)); }
@@ -319,6 +322,13 @@ function duplicate() {
   edit((sc) => duplicateMeasure(sc, s, m), { sel: { ...state.sel, m: m + 1 } });
 }
 
+function shiftMeasure(d) {
+  const { s, m } = state.sel;
+  const to = m + d;
+  if (to < 0 || to >= state.score.sections[s].measures.length) return;
+  edit((sc) => moveMeasure(sc, s, m, d), { sel: { ...state.sel, m: to } });
+}
+
 function removeMeasure() {
   const { s, m } = state.sel;
   const sec = state.score.sections[s];
@@ -452,18 +462,69 @@ async function exportPng() {
   }
 }
 
-// 인쇄할 때는 강조 없이 A4 폭(약 680px)으로 다시 그린다.
+// ---------- 인쇄 ----------
+// 인쇄 설정(배율·용지 방향)으로 강조 없이 다시 그리고, 줄 경계에서 쪽을 나눠 쪽마다 SVG 하나로 넣는다.
+
+const printOpts = () => ({ scale: state.opts.printScale, landscape: state.opts.printLandscape });
+
+function applyPageRule() {
+  let style = $('#print-page-style');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'print-page-style';
+    document.head.append(style);
+  }
+  style.textContent = pageRule(state.opts.printLandscape);
+}
+
 function beforePrint() {
   if (player.playing) player.stop();
-  const printSvg = renderScore(state.score, { width: 680, selection: null, playhead: null });
-  applyZoom(printSvg, 1);
-  printSvg.style.width = '';
-  printSvg.style.height = '';
-  printSvg.classList.add('print-svg');
-  $('#score-host').replaceChildren(printSvg);
-  svg = printSvg;
+  applyPageRule();
+  const pages = pageSvgs(layoutPrint(state.score, printOpts()));
+  $('#score-host').replaceChildren(...pages);
+  svg = pages[0];
 }
 function afterPrint() { render(); }
+
+function openPrint() {
+  $('#print-scale').value = Math.round(state.opts.printScale * 100);
+  for (const r of document.querySelectorAll('input[name="print-orient"]')) r.checked = (r.value === 'landscape') === state.opts.printLandscape;
+  updatePrintInfo();
+  $('#dlg-print').showModal();
+  $('#btn-print-go').focus();
+}
+
+function updatePrintInfo() {
+  const o = printOpts();
+  $('#print-scale-label').textContent = `${Math.round(o.scale * 100)}%`;
+  const { perLine, pages } = layoutPrint(state.score, o);
+  $('#print-info').textContent = `A4 ${o.landscape ? '가로' : '세로'} · 한 줄에 장단 ${perLine}개 · 약 ${pages.length}쪽`;
+}
+
+function setPrintOpts(patch) {
+  Object.assign(state.opts, patch);
+  saveOptions();
+  updatePrintInfo();
+}
+
+/** 화면에서 한 줄에 보이는 장단 수만큼 인쇄에도 들어가는 가장 큰 배율(최대 100%)을 찾는다. */
+function fitPrintScale() {
+  const target = svg ? analyze(svg).perLine : 0;
+  let pick = 0.5;
+  for (let p = 100; p >= 50; p -= 5) {
+    pick = p / 100;
+    if (layoutPrint(state.score, { ...printOpts(), scale: pick }).perLine >= target) break;
+  }
+  $('#print-scale').value = Math.round(pick * 100);
+  setPrintOpts({ printScale: pick });
+}
+
+function submitPrint(e) {
+  e.preventDefault();
+  $('#dlg-print').close();
+  applyPageRule();
+  window.print();
+}
 
 // ---------- 화면 갱신 ----------
 
@@ -521,6 +582,8 @@ function updateUi() {
   const g = sec.meter.grouping ? ` (${sec.meter.grouping.join('+')})` : '';
   $('#section-info').innerHTML = `<b>${esc(sectionLabel(sec, pos.s))}</b> — ${esc(sec.jangdan || '사용자 장단')}`
     + `<br><span class="muted">${sec.meter.beats}박${g} · ${sec.meter.division}분박 · 빠르기 ${sec.tempo} · 장단 ${sec.measures.length}개</span>`;
+  $('#btn-mea-up').disabled = pos.m === 0;
+  $('#btn-mea-down').disabled = pos.m >= sec.measures.length - 1;
   $('#btn-sec-up').disabled = pos.s === 0;
   $('#btn-sec-down').disabled = pos.s >= sc.sections.length - 1;
   $('#btn-sec-del').disabled = sc.sections.length <= 1;
@@ -807,7 +870,8 @@ const ACTIONS = {
   open: openFile,
   save: saveFile,
   png: exportPng,
-  print: () => window.print(),
+  print: openPrint,
+  'print-fit': fitPrintScale,
   help: openHelp,
   info: openInfo,
   undo,
@@ -823,6 +887,8 @@ const ACTIONS = {
   clear: clearSlot,
   'measure-add': addMeasure,
   'measure-dup': duplicate,
+  'measure-up': () => shiftMeasure(-1),
+  'measure-down': () => shiftMeasure(1),
   'measure-del': removeMeasure,
   'measure-fill': fillVariant,
   'section-add': () => openSectionDialog('add'),
@@ -873,7 +939,15 @@ function onKeyDown(e) {
     e.preventDefault();
     return;
   }
-  if (e.altKey) return;
+  if (e.altKey) {
+    // Alt+방향키: 장단 순서 바꾸기 (보기 방향은 방향키 이동과 같다)
+    const vertical = state.score.settings.view === 'vertical';
+    const d = (vertical ? { ArrowRight: -1, ArrowLeft: 1 } : { ArrowUp: -1, ArrowDown: 1 })[e.code];
+    if (!d || e.shiftKey) return;
+    shiftMeasure(d);
+    e.preventDefault();
+    return;
+  }
   // 버튼에 포커스가 있으면 Space/Enter/Tab/방향키는 브라우저 기본 동작(접근성)
   if (onControl && ['Space', 'Enter', 'NumpadEnter', 'Tab'].includes(e.code)) return;
 
@@ -968,6 +1042,12 @@ function bindEvents() {
   }
   $('#form-section-edit').addEventListener('submit', submitSectionEdit);
   $('#form-info').addEventListener('submit', submitInfo);
+  $('#form-print').addEventListener('submit', submitPrint);
+  $('#print-scale').addEventListener('input', (e) => setPrintOpts({ printScale: Number(e.target.value) / 100 }));
+  for (const r of document.querySelectorAll('input[name="print-orient"]')) {
+    r.addEventListener('change', () => setPrintOpts({ printLandscape: r.value === 'landscape' }));
+  }
+  applyPageRule();
   for (const dlg of document.querySelectorAll('dialog')) {
     // 바깥(배경)을 누르면 닫기
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
