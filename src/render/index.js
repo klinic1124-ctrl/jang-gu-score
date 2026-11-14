@@ -14,17 +14,18 @@ const STYLE = `
 .jg-title { fill: var(--jg-ink, #111); font-weight: 700; }
 .jg-time { fill: var(--jg-ink, #111); font-weight: 700; font-family: Georgia, "Times New Roman", serif; }
 .jg-rule { stroke: var(--jg-line, #555); stroke-width: 1; fill: none; }
-.jg-rule-bold { stroke: var(--jg-line, #555); stroke-width: 2.4; fill: none; }
+.jg-rule-bold { stroke: var(--jg-ink, #111); stroke-width: 2.6; fill: none; }
 .jg-rule-dash { stroke: var(--jg-line, #555); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
 .jg-frame { stroke: var(--jg-ink, #111); stroke-width: 1.6; fill: none; }
 .jg-sym { stroke: var(--jg-ink, #111); fill: none; stroke-linecap: round; }
 .jg-dot, .jg-fill { fill: var(--jg-ink, #111); stroke: none; }
 .jg-stem { stroke: var(--jg-ink, #111); stroke-width: 1.2; fill: none; }
-.jg-thin { stroke: var(--jg-ink, #111); stroke-width: 1; fill: none; }
+.jg-thin { stroke: var(--jg-ink, #111); fill: none; }
 .jg-hollow { fill: var(--jg-paper, #fff); stroke: var(--jg-ink, #111); stroke-width: 1.3; }
 .jg-staffline { stroke: var(--jg-ink, #111); stroke-width: 1.1; }
 .jg-bar { stroke: var(--jg-ink, #111); stroke-width: 1.2; }
 .jg-bar-thick { stroke: var(--jg-ink, #111); stroke-width: 3.5; }
+.jg-staff, .jg-header { pointer-events: none; }
 .jg-slot { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
 .jg-slot.is-playing { fill: var(--jg-play, #ffb02e); fill-opacity: .32; }
 .jg-slot.is-selected { fill: var(--jg-select, #2f6bff); fill-opacity: .2; stroke: var(--jg-select, #2f6bff); stroke-width: 1.5; }

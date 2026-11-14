@@ -29,7 +29,7 @@ export function renderVertical(parent, ctx, sec, s, y) {
   y += drawSectionHead(parent, sec, s, width - margin, y, 'end') + 4;
 
   const baseH = baseBeatSize(sec, sec.meter.beats > 12 ? 32 : 44, 15);
-  const symW = 26;
+  const symW = 30;
   const gueW = gue ? 40 : 0;
   const colW = symW + gueW;
   const gap = 12;
@@ -58,12 +58,12 @@ export function renderVertical(parent, ctx, sec, s, y) {
         const size = Math.min(17, sh * 0.8);
         beat.slots.forEach((slot, i) => {
           const cy = by + (i + 0.5) * sh;
-          const cx = gue ? x + symW / 2 + 1 : x + colW / 2;
+          const cx = gue ? x + symW / 2 + 2 : x + colW / 2 + 2; // 왼쪽에 강세 자리
           drawSymbol(g, slot, cx, cy, size, { accentAt: 'left' });
           const word = gue ? gueumOf(slot, settings.gueumStyle) : '';
           if (word) {
             const fs = Math.min(11, Math.max(8, sh * 0.62));
-            text(g, x + symW - 1, cy + fs * 0.36, word, { size: fs, maxWidth: gueW - 5 });
+            text(g, x + symW - 2, cy + fs * 0.36, word, { size: fs, maxWidth: gueW - 5 });
           }
           rects.push([x, by + i * sh, colW, sh, b, i]);
         });
@@ -90,12 +90,12 @@ export function renderHorizontal(parent, ctx, sec, s, y) {
 
   y += drawSectionHead(parent, sec, s, margin, y) + 6;
 
-  const baseW = baseBeatSize(sec, gue ? 46 : 38, gue ? 28 : 22);
+  const baseW = baseBeatSize(sec, gue ? 46 : 38, gue ? 26 : 22);
   const rowH = gue ? 46 : 32;
   const labelW = 24;
   const repW = 34;
   const avail = width - margin * 2 - labelW - repW;
-  const symY = gue ? 17 : rowH / 2;
+  const symY = gue ? 19 : rowH / 2 + 2;
 
   sec.measures.forEach((mea, m) => {
     const g = measureGroup(parent, s, m);
@@ -112,7 +112,7 @@ export function renderHorizontal(parent, ctx, sec, s, y) {
         if (b > b0) line(g, x, y, x, y + rowH, bounds.has(b) ? 'jg-rule-bold' : 'jg-rule');
         const k = beat.slots.length;
         const sw = w / k;
-        const size = Math.min(17, sw * 0.72, rowH * 0.5);
+        const size = Math.min(16, sw * 0.7, rowH * 0.5);
         beat.slots.forEach((slot, i) => {
           const cx = x + (i + 0.5) * sw;
           drawSymbol(g, slot, cx, y + symY, size, { accentAt: 'above' });

@@ -123,10 +123,9 @@ function restGlyph(g, x, y, base, dots) {
   if (base >= 4) {
     el('rect', { x: r2(x - 5), y: r2(y - 4), width: 10, height: 4, class: 'jg-fill' }, g); // 2분쉼표
   } else if (base === 2) {
-    el('path', {
-      d: `M${x - 2},${y - 12} L${x + 3},${y - 6} L${x - 1.5},${y} L${x + 3},${y + 5} C${x - 2},${y + 3} ${x - 3},${y + 8} ${x + 1},${y + 11}`,
-      class: 'jg-thin', 'stroke-width': 2, 'stroke-linejoin': 'round',
-    }, g);
+    // 4분쉼표: 굵은 번개 모양 + 아래 갈고리
+    el('path', { d: `M${x - 2},${y - 12} L${x + 3},${y - 5.5} L${x - 1},${y + 0.5} L${x + 3.5},${y + 6}`, class: 'jg-thin', 'stroke-width': 2.4, 'stroke-linejoin': 'bevel' }, g);
+    el('path', { d: `M${x + 3.5},${y + 6} C${x - 1},${y + 3.5} ${x - 3.5},${y + 7.5} ${x + 0.5},${y + 11.5}`, class: 'jg-thin', 'stroke-width': 1.5 }, g);
   } else {
     const n = FLAGS[base] ?? 1;
     for (let f = 0; f < n; f += 1) {
@@ -198,7 +197,8 @@ function drawBeat(g, info, bx, ppu, lineY, gueums, settings) {
     p.stemX = { 1: p.x + RX * sc - 0.6, '-1': p.x - RX * sc + 0.6 };
     if (p.rest) { restGlyph(g, p.x, lineY, p.base, p.dots); continue; }
     head(g, p.x, lineY, { hollow: p.base >= 4, scale: sc });
-    for (let d = 0; d < p.dots; d += 1) el('circle', { cx: r2(p.x + 8 + d * 4), cy: r2(lineY - 3.5), r: 1.5, class: 'jg-dot' }, g);
+    const dotX = p.x + (p.up && p.flags ? 11 : 8); // 위 꼬리와 겹치지 않게
+    for (let d = 0; d < p.dots; d += 1) el('circle', { cx: r2(dotX + d * 4), cy: r2(lineY - 3.5), r: 1.5, class: 'jg-dot' }, g);
     if (p.grace) graceNote(g, p.x, lineY);
     if (p.attack && settings.showGueum) {
       const word = gueumOf(p.slot, settings.gueumStyle);
@@ -210,7 +210,6 @@ function drawBeat(g, info, bx, ppu, lineY, gueums, settings) {
     const tip = lineY - dir * STEM;
     for (const run of beamRuns(pieces, dir)) {
       for (const p of run) {
-        if (p.base >= 8) continue;
         const sx = p.stemX[dir];
         line(g, sx, lineY - dir, sx, tip, 'jg-stem');
         if (run.length === 1 && p.flags) flags(g, sx, tip, p.flags, dir);
@@ -248,7 +247,7 @@ function drawBeat(g, info, bx, ppu, lineY, gueums, settings) {
     const runs = beamRuns(pieces, dir);
     const covered = runs.length === 1 && runs[0].length === pieces.length && runs[0].length > 1;
     if (!covered && x2 - x1 > 14) {
-      const hy = y - 4 * dir + (dir > 0 ? 0 : 0);
+      const hy = y - 4 * dir;
       const ey = hy + 4 * dir;
       el('path', { d: `M${r2(x1 - 2)},${r2(ey)} L${r2(x1 - 2)},${r2(hy)} L${r2(mid - 6)},${r2(hy)} M${r2(mid + 6)},${r2(hy)} L${r2(x2 + 2)},${r2(hy)} L${r2(x2 + 2)},${r2(ey)}`, class: 'jg-thin' }, g);
     }
@@ -258,22 +257,35 @@ function drawBeat(g, info, bx, ppu, lineY, gueums, settings) {
 
 // ---------------- 구간 ----------------
 
+/** 8분음표당 폭: 이웃 타점 사이가 충분히 벌어지고(기덕은 꾸밈음 자리까지) 클릭 칸이 너무 좁지 않게. */
+function unitWidth(sec) {
+  let ppu = 28;
+  for (const mea of sec.measures) {
+    let t = 0;
+    let prev = null;
+    for (const beat of mea.beats) {
+      const U = beatUnits(sec, beat);
+      const a = U / beat.slots.length;
+      ppu = Math.max(ppu, 11 / a);
+      beat.slots.forEach((sl, i) => {
+        if (!sl) return;
+        const at = t + i * a;
+        if (prev !== null) ppu = Math.max(ppu, (STROKES[sl.t].grace ? 25 : 17) / (at - prev));
+        prev = at;
+      });
+      t += U;
+    }
+  }
+  return ppu;
+}
+
 export function renderStaff(parent, ctx, sec, s, y) {
   const { width, margin, settings } = ctx;
   const gue = !!settings.showGueum;
   const bounds = groupBoundaries(sec.meter);
   y += drawSectionHead(parent, sec, s, margin, y) + 2;
 
-  // 가장 촘촘한 박에서도 분박 칸 간격이 충분하도록 8분음표당 폭을 정한다
-  let density = 0;
-  let hasGrace = false;
-  for (const mea of sec.measures) {
-    for (const beat of mea.beats) {
-      density = Math.max(density, beat.slots.length / beatUnits(sec, beat));
-      if (beat.slots.some((sl) => sl && STROKES[sl.t]?.grace)) hasGrace = true;
-    }
-  }
-  const ppu = Math.max(28, density * (hasGrace ? 23 : 18));
+  const ppu = unitWidth(sec);
   const avail = width - margin * 2;
 
   // 장단을 줄에 놓을 조각(너무 긴 장단은 묶음/박 경계에서 나눔)
@@ -298,7 +310,7 @@ export function renderStaff(parent, ctx, sec, s, y) {
     if (cur && cur.w + need <= avail) { cur.items.push(it); cur.w += need; } else { cur = { items: [it], w: need }; lines.push(cur); }
   }
 
-  const below = gue ? 62 : 44;
+  const below = gue ? 56 : 44;
   const groups = new Map();
   const groupOf = (m) => {
     if (!groups.has(m)) groups.set(m, { g: measureGroup(parent, s, m), rects: [] });
@@ -343,11 +355,10 @@ export function renderStaff(parent, ctx, sec, s, y) {
       }
     }
     line(staffG, x0, lineY, x, lineY, 'jg-staffline');
-    // 구음: 이웃 구음과 겹치지 않을 폭으로 맞춤
+    // 구음: 음표 머리 왼쪽에 맞춰 쓰고 다음 구음과 겹치지 않게 폭을 맞춤
     gueums.forEach((q, j) => {
-      const gapL = j > 0 ? q.x - gueums[j - 1].x : 40;
-      const gapR = j + 1 < gueums.length ? gueums[j + 1].x - q.x : 40;
-      text(staffG, q.x, lineY + STEM + 30, q.word, { size: 11, anchor: 'middle', maxWidth: Math.max(9, Math.min(gapL, gapR) - 2) });
+      const room = j + 1 < gueums.length ? gueums[j + 1].x - q.x - 3 : 60;
+      text(staffG, q.x - RX, lineY + STEM + 24, q.word, { size: 11, maxWidth: Math.max(9, room) });
     });
     y = lineY + below + 8;
   }

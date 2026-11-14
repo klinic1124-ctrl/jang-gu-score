@@ -49,7 +49,7 @@ export function drawSymbol(parent, slot, cx, cy, s, { accentAt = 'left' } = {}) 
   DRAW[slot.t](g, cx, cy, s);
   if (slot.accent) {
     const a = Math.max(6, s * 0.5);
-    if (accentAt === 'above') drawAccent(g, cx - s * 0.3, cy - s * 0.62, a);
+    if (accentAt === 'above') drawAccent(g, cx - s * 0.5, cy - s * 0.6, a);
     else drawAccent(g, cx - s * 0.62, cy, a);
   }
   return g;
