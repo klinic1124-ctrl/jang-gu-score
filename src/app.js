@@ -1,10 +1,10 @@
 // 장구 악보 편집기 — 상태(state) 한 곳에서 관리: 변경 → 히스토리 기록 → 다시 그리기 → 자동 저장.
 import {
-  STROKES, STROKE_IDS, SLOT_COUNTS, createScore, createSection, createMeasure, newId, clone,
+  STROKES, STROKE_IDS, SLOT_COUNTS, createScore, gueumOf, createSection, createMeasure, newId, clone,
   clampPos, movePos, getMeasure, getBeat, getSlot, setSlot, toggleAccent, setBeatSlotCount,
   insertMeasure, duplicateMeasure, moveMeasure, deleteMeasure, insertSection, deleteSection, serialize, deserialize,
 } from './model.js';
-import { renderScore, updateHighlights } from './render/index.js';
+import { renderScore, updateHighlights, symbolSvg } from './render/index.js';
 import { Player } from './audio.js';
 import { PRESETS, getPreset, sectionFromPreset, measureFromPreset } from './presets.js';
 import { History } from './history.js';
@@ -15,7 +15,10 @@ const SCORE_KEY = 'janggu-score/score';
 const OPTS_KEY = 'janggu-score/options';
 const CUSTOM = '__custom';
 const ZOOMS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2];
-const VIEW_NAMES = { vertical: '세로 정간보', horizontal: '가로 정간보', staff: '리듬보' };
+const GOBEOP = '산조·민요 반주';
+// 교재식 표기: 리듬보+표, 민속악식 부호·구음
+const TEXTBOOK_LOOK = { view: 'combined', symbolStyle: 'minsok', gueumStyle: 'minsok', showGueum: true };
+const isPlainLook = (st) => st.view === 'vertical' && st.symbolStyle === 'jeongak';
 // PNG·인쇄용 색(종이 위 먹색). 페이지 CSS가 없는 SVG 단독 그림에서도 같은 색이 되도록 넘긴다.
 const EXPORT_VARS = {
   '--jg-ink': '#1f1c18', '--jg-line': '#8f8778', '--jg-paper': '#ffffff',
@@ -39,6 +42,7 @@ const history = new History(300);
 const player = new Player();
 let svg = null;          // 지금 화면의 악보 SVG
 let renderWidth = 0;     // 마지막으로 renderScore에 넘긴 폭
+let paletteStyle = '';   // 팔레트 부호 그림이 그려진 부호 체계
 
 // ---------- 시작 ----------
 
@@ -277,6 +281,30 @@ function accent() {
   edit((sc) => toggleAccent(sc, pos));
 }
 
+/** 선택한 칸의 구음을 직접 정한다. 비웠거나 기본 구음과 같으면 slot.g를 지운다. */
+function setGueum(text) {
+  const pos = state.sel;
+  const g = text.trim().slice(0, 8);
+  edit((sc) => {
+    const slot = getSlot(sc, pos);
+    if (!slot || slot.t === 'rest') return;
+    if (g && g !== gueumOf({ t: slot.t }, sc.settings.gueumStyle)) slot.g = g; else delete slot.g;
+  });
+}
+
+function focusGueum() {
+  const input = $('#slot-gueum');
+  if (input.disabled) { toast('타법이 있는 칸을 고른 뒤 구음을 적을 수 있습니다.'); return; }
+  input.focus();
+  input.select();
+}
+
+function setMemo(text) {
+  const pos = state.sel;
+  const memo = text.slice(0, 200);
+  edit((sc) => { getMeasure(sc, pos).memo = memo; });
+}
+
 function setDivision(n) {
   const pos = state.sel;
   edit((sc) => setBeatSlotCount(sc, pos, n), { sel: { ...pos, i: Math.min(pos.i, n - 1) } });
@@ -388,6 +416,7 @@ function buildPresetSection(id, { variant = 0, measures = 1, fill = 'all', name 
   sec.measures = out;
   sec.name = name; // 이름을 비워 두면 머리말에 장단 이름만 나온다
   if (tempo) sec.tempo = tempo;
+  if (sec.tempoMax && sec.tempoMax <= sec.tempo) sec.tempoMax = null;
   return sec;
 }
 
@@ -544,6 +573,8 @@ function updateUi() {
   $('#opt-gueum').checked = sc.settings.showGueum;
   $('#opt-gueum-style').value = sc.settings.gueumStyle;
   $('#opt-gueum-style').disabled = !sc.settings.showGueum;
+  $('#opt-symbol').value = sc.settings.symbolStyle;
+  if (paletteStyle !== sc.settings.symbolStyle) fillPaletteSymbols();
   $('#zoom-label').textContent = `${Math.round(state.opts.zoom * 100)}%`;
   $('#opt-tempo').value = Math.round(state.opts.tempoScale * 100);
   $('#tempo-label').textContent = `${Math.round(state.opts.tempoScale * 100)}%`;
@@ -563,6 +594,13 @@ function updateUi() {
   $('#pos-info').innerHTML = `<b>${esc(sectionLabel(sec, pos.s))}</b> · ${pos.m + 1}째 장단 · ${pos.b + 1}박`
     + (beat.slots.length > 1 ? ` · ${pos.i + 1}/${beat.slots.length}칸` : '') + `<br><span class="muted">${esc(what)}</span>`;
   $('#measure-repeat').value = mea.repeat;
+  const gin = $('#slot-gueum');
+  const hasStroke = !!slot && slot.t !== 'rest';
+  gin.disabled = !hasStroke;
+  gin.placeholder = hasStroke ? gueumOf({ t: slot.t }, sc.settings.gueumStyle) : '';
+  if (document.activeElement !== gin) gin.value = slot?.g ?? '';
+  const memo = $('#measure-memo');
+  if (document.activeElement !== memo) memo.value = mea.memo ?? '';
 
   // 가락 선택
   const preset = presetFor(sec);
@@ -581,7 +619,7 @@ function updateUi() {
 
   const g = sec.meter.grouping ? ` (${sec.meter.grouping.join('+')})` : '';
   $('#section-info').innerHTML = `<b>${esc(sectionLabel(sec, pos.s))}</b> — ${esc(sec.jangdan || '사용자 장단')}`
-    + `<br><span class="muted">${sec.meter.beats}박${g} · ${sec.meter.division}분박 · 빠르기 ${sec.tempo} · 장단 ${sec.measures.length}개</span>`;
+    + `<br><span class="muted">${sec.meter.beats}박${g} · ${sec.meter.division}분박 · 빠르기 ${sec.tempo}${sec.tempoMax ? `~${sec.tempoMax}` : ''} · 장단 ${sec.measures.length}개</span>`;
   $('#btn-mea-up').disabled = pos.m === 0;
   $('#btn-mea-down').disabled = pos.m >= sec.measures.length - 1;
   $('#btn-sec-up').disabled = pos.s === 0;
@@ -621,9 +659,10 @@ function buildPalette() {
     b.dataset.stroke = id;
     b.title = `${st.label} — ${st.desc} (${st.key.toUpperCase()})`;
     b.setAttribute('aria-label', `${st.label} 입력, 단축키 ${st.key.toUpperCase()}`);
-    b.innerHTML = `<span class="pal-label">${esc(st.label)}</span><kbd>${esc(st.key.toUpperCase())}</kbd>`;
+    b.innerHTML = `<span class="pal-glyph" aria-hidden="true"></span><span class="pal-label">${esc(st.label)}</span><kbd>${esc(st.key.toUpperCase())}</kbd>`;
     return b;
   }));
+  fillPaletteSymbols();
   $('#palette-division').replaceChildren(...SLOT_COUNTS.map((n) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -636,53 +675,34 @@ function buildPalette() {
   }));
 }
 
-/** 도움말의 부호 칸: 각 타법을 한 칸짜리 악보로 그려 실제 부호 모양을 보여준다. */
+/** 한 타법의 부호 그림(렌더러의 symbolSvg). 그리지 못하면 빈 span. */
+function glyphFor(id, style, size = 24) {
+  try { return symbolSvg(id, style, size); } catch { return document.createElement('span'); }
+}
+
+/** 팔레트 버튼의 부호 그림을 지금 부호 체계로 다시 그린다. */
+function fillPaletteSymbols() {
+  paletteStyle = state.score.settings.symbolStyle;
+  for (const btn of document.querySelectorAll('.pal-btn.stroke')) {
+    btn.querySelector('.pal-glyph')?.replaceChildren(glyphFor(btn.dataset.stroke, paletteStyle));
+  }
+}
+
+/** 도움말의 부호 표: 정악식·민속악식 두 모양을 모두 보여준다. */
 function buildHelp() {
   const tbody = $('#help-strokes tbody');
   tbody.replaceChildren(...STROKE_IDS.map((id) => {
     const st = STROKES[id];
+    const g = (k) => esc(st.gueum[k] || '—');
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="glyph-cell"></td><td>${esc(st.label)}</td><td>${esc(st.gueum.banju || '—')} / ${esc(st.gueum.samul || '—')}</td>`
+    tr.innerHTML = '<td class="glyph-cell"></td><td class="glyph-cell"></td>'
+      + `<td>${esc(st.label)}</td><td>${g('banju')} / ${g('samul')} / ${g('minsok')}</td>`
       + `<td><kbd>${esc(st.key.toUpperCase())}</kbd></td><td>${esc(st.desc)}</td>`;
-    tr.querySelector('.glyph-cell').append(glyphFor(id));
+    const cells = tr.querySelectorAll('.glyph-cell');
+    cells[0].append(glyphFor(id, 'jeongak', 30));
+    cells[1].append(glyphFor(id, 'minsok', 30));
     return tr;
   }));
-}
-
-function glyphFor(id) {
-  const span = document.createElement('span');
-  try {
-    const sec = createSection({ name: '', jangdan: '', meter: { beats: 1, division: 2 } });
-    sec.measures[0].beats[0].slots[0] = { t: id };
-    const sc = createScore({ title: '', sections: [sec] });
-    sc.settings.showGueum = false;
-    sc.settings.view = 'horizontal';
-    const g = symbolOnly(renderScore(sc, { width: 120 }));
-    if (g) span.append(g);
-  } catch { /* 부호를 그리지 못하면 비워 둔다 */ }
-  return span;
-}
-
-/** 한 칸 악보 SVG에서 칸 주변만 잘라 작은 그림으로 만든다. */
-function symbolOnly(el) {
-  const host = document.createElement('div');
-  host.style.cssText = 'position:absolute;left:-9999px;top:0';
-  host.append(el);
-  document.body.append(host);
-  try {
-    const slot = el.querySelector('.jg-slot');
-    if (!slot) return null;
-    const bb = slot.getBBox();
-    el.setAttribute('viewBox', `${bb.x} ${bb.y} ${bb.width} ${bb.height}`);
-    el.setAttribute('width', 36);
-    el.setAttribute('height', Math.round((36 * bb.height) / bb.width));
-    el.style.width = '';
-    el.style.height = '';
-    el.classList.add('glyph-svg');
-    return el;
-  } finally {
-    host.remove();
-  }
 }
 
 // ---------- 구간 대화상자 ----------
@@ -691,21 +711,17 @@ let sectionDialogMode = 'add';
 
 function buildPresetOptions() {
   const sel = $('#sd-preset');
-  const groups = ['정악', '민속악'].map((cat) => {
+  const cats = [...new Set(PRESETS.map((p) => p.category))];
+  const order = [GOBEOP, '정악', '민속악'];
+  cats.sort((a, b) => (order.indexOf(a) + 99) % 99 - (order.indexOf(b) + 99) % 99);
+  const groups = cats.map((cat) => {
     const og = document.createElement('optgroup');
-    og.label = cat;
+    og.label = cat || '기타';
     for (const p of PRESETS.filter((x) => x.category === cat)) {
       og.append(new Option(`${p.name} — ${p.meter.beats}박${p.verified === false ? ' (확인 필요)' : ''}`, p.id));
     }
     return og;
-  }).filter((og) => og.children.length);
-  const others = PRESETS.filter((x) => !['정악', '민속악'].includes(x.category));
-  if (others.length) {
-    const og = document.createElement('optgroup');
-    og.label = '기타';
-    others.forEach((p) => og.append(new Option(`${p.name} — ${p.meter.beats}박`, p.id)));
-    groups.push(og);
-  }
+  });
   const custom = document.createElement('optgroup');
   custom.label = '직접 지정';
   custom.append(new Option('사용자 장단 (박 수·분박 지정)', CUSTOM));
@@ -723,6 +739,7 @@ function openSectionDialog(mode) {
   // 구간 추가는 지금 구간의 장단을 기본으로
   const cur = presetFor(state.score.sections[state.sel.s]);
   $('#sd-preset').value = isNew ? (PRESETS.find((p) => p.name === '도드리')?.id ?? PRESETS[0]?.id ?? CUSTOM) : (cur?.id ?? PRESETS[0]?.id ?? CUSTOM);
+  $('#sd-slots').value = 1;
   $('#sd-name').value = '';
   $('#sd-measures').value = 4;
   $('#sd-fill').value = 'first';
@@ -737,6 +754,9 @@ function onPresetChange() {
   const custom = id === CUSTOM;
   $('#sd-custom-fields').hidden = !custom;
   $('#sd-preset-fields').hidden = custom;
+  // 교재식 표기는 ‘산조·민요 반주’를 고르면 기본으로 켠다(구간 추가는 지금 악보가 기본 모양일 때만)
+  const gobeop = !custom && getPreset(id)?.category === GOBEOP;
+  $('#sd-textbook').checked = gobeop && (sectionDialogMode === 'new' || isPlainLook(state.score.settings));
   if (!custom) {
     const p = getPreset(id);
     $('#sd-variant').replaceChildren(...p.variants.map((v, k) => new Option(v.name || `가락 ${k + 1}`, k)));
@@ -774,7 +794,7 @@ function sectionFromDialog() {
       throw new Error(`박 묶음의 합이 박 수(${beats})와 같아야 합니다. 예: ${beats % 2 === 0 ? `${beats / 2},${beats / 2}` : beats}`);
     }
   }
-  const meter = { beats, division, grouping };
+  const meter = { beats, division, grouping, slots: Number($('#sd-slots').value) || 1 };
   const list = Array.from({ length: measures }, () => createMeasure(meter));
   return createSection({ name, jangdan: $('#sd-jangdan').value.trim() || '사용자 장단', meter, tempo, measures: list });
 }
@@ -786,7 +806,7 @@ function updateSectionPreview() {
     sec.measures = sec.measures.slice(0, 1);
     sec.name = '';
     const sc = createScore({ title: '', sections: [sec] });
-    sc.settings = { ...state.score.settings };
+    sc.settings = { ...state.score.settings, ...($('#sd-textbook').checked ? TEXTBOOK_LOOK : {}) };
     const width = Math.max(240, box.clientWidth - 16 || 300);
     box.replaceChildren(renderScore(sc, { width }));
     $('#sd-error').textContent = '';
@@ -802,11 +822,12 @@ function submitSectionDialog(e) {
   try { sec = sectionFromDialog(); } catch (err) { $('#sd-error').textContent = err.message; return; }
   if (sectionDialogMode === 'new') {
     const score = createScore({ title: $('#sd-title').value.trim() || '제목 없음', sections: [sec] });
-    score.settings = { ...state.score.settings };
+    score.settings = { ...state.score.settings, ...($('#sd-textbook').checked ? TEXTBOOK_LOOK : {}) };
     replaceScore(score);
     toast('새 악보를 시작했습니다. 이전 악보는 실행 취소로 되돌릴 수 있습니다.', 4000);
   } else {
     const at = state.sel.s + 1;
+    if ($('#sd-textbook').checked) Object.assign(state.score.settings, TEXTBOOK_LOOK);
     edit((sc) => insertSection(sc, at, sec), { sel: { s: at, m: 0, b: 0, i: 0 } });
   }
   $('#dlg-section').close();
@@ -825,6 +846,8 @@ function openSectionEdit(s = state.sel.s) {
   $('#se-info').textContent = `${sec.jangdan || '사용자 장단'} · ${sec.meter.beats}박${g} · ${sec.meter.division}분박 · 장단 ${sec.measures.length}개`;
   $('#se-name').value = sec.name;
   $('#se-tempo').value = sec.tempo;
+  $('#se-tempomax').value = sec.tempoMax ?? '';
+  $('#se-slots').value = sec.meter.slots ?? 1;
   $('#se-tempo-hint').textContent = p && Array.isArray(p.tempoRange) ? `${p.name}은(는) 보통 ♩=${p.tempoRange[0]}~${p.tempoRange[1]} 정도로 연주합니다.` : '';
   $('#se-error').textContent = '';
   $('#dlg-section-edit').showModal();
@@ -835,9 +858,16 @@ function submitSectionEdit(e) {
   e.preventDefault();
   const tempo = Math.floor(Number($('#se-tempo').value));
   if (!(tempo >= 10 && tempo <= 400)) { $('#se-error').textContent = '빠르기는 10~400 사이로 적어 주세요.'; return; }
+  const maxText = $('#se-tempomax').value.trim();
+  const tempoMax = maxText === '' ? null : Math.floor(Number(maxText));
+  if (tempoMax !== null && !(tempoMax > tempo && tempoMax <= 400)) { $('#se-error').textContent = `빠르기 범위의 위쪽 값은 ${tempo}보다 크고 400 이하여야 합니다. 비워 두면 한 값만 표시합니다.`; return; }
+  const slots = Number($('#se-slots').value) || 1;
   const s = editingSection;
   const name = $('#se-name').value.trim();
-  edit((sc) => { sc.sections[s].name = name; sc.sections[s].tempo = tempo; });
+  edit((sc) => {
+    const sec = sc.sections[s];
+    sec.name = name; sec.tempo = tempo; sec.tempoMax = tempoMax; sec.meter.slots = slots;
+  });
   $('#dlg-section-edit').close();
 }
 
@@ -959,6 +989,8 @@ function onKeyDown(e) {
     select(stepBeat(state.sel, e.shiftKey ? -1 : 1));
   } else if (STROKE_BY_CODE[code] && !e.shiftKey) {
     inputStroke(STROKE_BY_CODE[code]);
+  } else if (code === 'F2' || (code === 'Quote' && !e.shiftKey)) {
+    focusGueum();
   } else if (code === 'Backspace' || code === 'Delete') {
     clearSlot();
   } else if (code === 'Period' || code === 'NumpadDecimal') {
@@ -985,6 +1017,14 @@ function onKeyDown(e) {
 }
 
 function onScoreClick(e) {
+  const memo = e.target.closest('.jg-memo');
+  if (memo) {
+    const d = memo.dataset;
+    const same = state.sel.s === +d.s && state.sel.m === +d.m;
+    select(same ? state.sel : { s: +d.s, m: +d.m, b: 0, i: 0 });
+    $('#measure-memo').focus();
+    return;
+  }
   const slot = e.target.closest('.jg-slot');
   if (slot) {
     const d = slot.dataset;
@@ -1022,6 +1062,22 @@ function bindEvents() {
     r.addEventListener('change', () => { setSettings({ view: r.value }); revealSelection(); r.blur(); });
   }
   $('#opt-gueum').addEventListener('change', (e) => setSettings({ showGueum: e.target.checked }));
+  $('#opt-symbol').addEventListener('change', (e) => {
+    const symbolStyle = e.target.value;
+    setSettings({ symbolStyle, gueumStyle: symbolStyle === 'minsok' ? 'minsok' : 'banju' });
+    e.target.blur();
+  });
+  const gin = $('#slot-gueum');
+  gin.addEventListener('change', () => setGueum(gin.value));
+  gin.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); setGueum(gin.value); $('#score-scroll').focus({ preventScroll: true }); }
+    else if (e.key === 'Escape') { e.preventDefault(); gin.value = getSlot(state.score, state.sel)?.g ?? ''; $('#score-scroll').focus({ preventScroll: true }); }
+  });
+  $('#measure-memo').addEventListener('change', (e) => setMemo(e.target.value));
+  $('#measure-memo').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); $('#score-scroll').focus({ preventScroll: true }); }
+  });
   $('#opt-gueum-style').addEventListener('change', (e) => { setSettings({ gueumStyle: e.target.value }); e.target.blur(); });
   $('#opt-tempo').addEventListener('input', (e) => {
     state.opts.tempoScale = Number(e.target.value) / 100;
@@ -1037,7 +1093,7 @@ function bindEvents() {
   // 대화상자
   $('#form-section').addEventListener('submit', submitSectionDialog);
   $('#sd-preset').addEventListener('change', onPresetChange);
-  for (const id of ['#sd-variant', '#sd-fill', '#sd-beats', '#sd-division', '#sd-grouping', '#sd-tempo', '#sd-measures']) {
+  for (const id of ['#sd-variant', '#sd-fill', '#sd-beats', '#sd-division', '#sd-slots', '#sd-grouping', '#sd-tempo', '#sd-measures', '#sd-textbook']) {
     $(id).addEventListener('input', updateSectionPreview);
   }
   $('#form-section-edit').addEventListener('submit', submitSectionEdit);

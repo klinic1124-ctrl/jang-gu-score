@@ -29,7 +29,7 @@ export function drawSectionHead(parent, sec, s, x, y, align = 'start') {
   const g = el('g', { class: 'jg-section-head', 'data-s': s }, parent);
   const label = sectionTitle(sec);
   const size = 15;
-  const tempoStr = `=${sec.tempo}`;
+  const tempoStr = sec.tempoMax > sec.tempo ? `≒ ${sec.tempo}~${sec.tempoMax}` : `=${sec.tempo}`;
   const gap = label ? 14 : 0;
   const dotted = sec.meter.division === 3;
   const tempoW = 9 + (dotted ? 4 : 0) + textWidth(tempoStr, 13);

@@ -1,7 +1,8 @@
 // 정간보(세로·가로) 렌더러.
 
-import { beatUnits, gueumOf } from '../model.js';
-import { el, text, line, r2, slotRect, measureGroup, chunkBeats, groupBoundaries } from './svg.js';
+import { beatUnits } from '../model.js';
+import { el, text, line, r2, slotRect, measureGroup, chunkBeats, groupBoundaries, gueumText, wrapText } from './svg.js';
+import { displayParts } from './strokes.js';
 import { drawSymbol } from './symbols.js';
 import { drawSectionHead } from './head.js';
 
@@ -16,6 +17,16 @@ function baseBeatSize(sec, minBase, minSlot) {
 }
 
 const repeatLabel = (mea) => (mea.repeat > 1 ? `×${mea.repeat}` : '');
+
+/** 장단 메모를 여러 줄로 쓴다(<g class="jg-memo">). 차지한 높이를 돌려준다. */
+export function drawMemo(parent, s, m, memoStr, x, y, maxW, { size = 11, anchor = 'start', prefix = '' } = {}) {
+  if (!memoStr) return 0;
+  const g = el('g', { class: 'jg-memo', 'data-s': s, 'data-m': m }, parent);
+  const lines = wrapText(prefix + memoStr, size, maxW);
+  const lh = Math.round(size * 1.45);
+  lines.forEach((ln, j) => text(g, x, y + size + j * lh, ln, { size, anchor, cls: 'jg-muted' }));
+  return lines.length * lh;
+}
 
 // ---------------- 세로 정간보 ----------------
 // 한 장단 = 세로 한 줄(위→아래), 장단은 오른쪽→왼쪽, 폭이 차면 아래 단으로.
@@ -59,11 +70,10 @@ export function renderVertical(parent, ctx, sec, s, y) {
         beat.slots.forEach((slot, i) => {
           const cy = by + (i + 0.5) * sh;
           const cx = gue ? x + symW / 2 + 2 : x + colW / 2 + 2; // 왼쪽에 강세 자리
-          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left' });
-          const word = gue ? gueumOf(slot, settings.gueumStyle) : '';
-          if (word) {
+          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left', style: settings.symbolStyle, span: [x + 6, x + symW - 3] });
+          if (gue && slot) {
             const fs = Math.min(11, Math.max(8, sh * 0.62));
-            text(g, x + symW - 2, cy + fs * 0.36, word, { size: fs, maxWidth: gueW - 5 });
+            gueumText(g, x + symW - 2, cy + fs * 0.36, displayParts(slot, settings.gueumStyle), { size: fs, maxWidth: gueW - 5 });
           }
           rects.push([x, by + i * sh, colW, sh, b, i]);
         });
@@ -75,6 +85,14 @@ export function renderVertical(parent, ctx, sec, s, y) {
       for (const [rx, ry, rw, rh, b, i] of rects) slotRect(g, rx, ry, rw, rh, s, m, b, i);
     });
     y = top + rowH + (hasRepeat ? 22 : 6) + 14;
+    // 메모: 장단 줄 아래에 장단 번호와 함께
+    let memoH = 0;
+    row.forEach((mea, j) => {
+      if (!mea.memo) return;
+      const h = drawMemo(parent, s, r0 + j, mea.memo, width - margin, y - 8 + memoH, width - margin * 2, { anchor: 'end', prefix: `${r0 + j + 1}: ` });
+      memoH += h + 2;
+    });
+    if (memoH) y += memoH + 8;
   }
   return y;
 }
@@ -115,9 +133,8 @@ export function renderHorizontal(parent, ctx, sec, s, y) {
         const size = Math.min(16, sw * 0.7, rowH * 0.5);
         beat.slots.forEach((slot, i) => {
           const cx = x + (i + 0.5) * sw;
-          drawSymbol(g, slot, cx, y + symY, size, { accentAt: 'above' });
-          const word = gue ? gueumOf(slot, settings.gueumStyle) : '';
-          if (word) text(g, cx, y + 39, word, { size: 10, anchor: 'middle', maxWidth: sw - 3 });
+          drawSymbol(g, slot, cx, y + symY, size, { accentAt: 'above', style: settings.symbolStyle, span: [x + i * sw + 3, x + (i + 1) * sw - 3] });
+          if (gue && slot) gueumText(g, cx, y + 39, displayParts(slot, settings.gueumStyle), { size: 10, anchor: 'middle', maxWidth: sw - 3 });
           rects.push([x + i * sw, y, sw, rowH, b, i]);
         });
         x += w;
@@ -127,6 +144,7 @@ export function renderHorizontal(parent, ctx, sec, s, y) {
       if (last && mea.repeat > 1) text(g, x + 8, y + rowH / 2 + 5, repeatLabel(mea), { size: 13, weight: 700 });
       y += rowH + (last ? 10 : 4);
     });
+    if (mea.memo) y += drawMemo(parent, s, m, mea.memo, margin + labelW, y - 6, avail + repW, { size: 10 }) + 6;
     for (const [rx, ry, rw, rh, b, i] of rects) slotRect(g, rx, ry, rw, rh, s, m, b, i);
   });
   return y;

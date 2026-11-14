@@ -42,9 +42,17 @@ export function analyze(svg) {
     const b = n.getBBox();
     glued.add(bandAt(b.y + b.height / 2));
   }
+  // 장단 메모는 바로 위 단의 띠에 붙인다(쪽이 메모 앞에서 갈리지 않게)
+  const memos = new Set();
+  for (const n of svg.querySelectorAll('.jg-memo')) {
+    const b = n.getBBox();
+    const i = bandAt(b.y + b.height / 2);
+    if (i > 0) memos.add(i);
+  }
   const bands = [];
   let carry = null;
   merged.forEach((b, i) => {
+    if (memos.has(i) && carry === null && bands.length) { bands[bands.length - 1].y1 = Math.max(bands[bands.length - 1].y1, b.y1); return; }
     if (carry !== null) b.y0 = carry;
     if (glued.has(i) && i < merged.length - 1) carry = b.y0;
     else { bands.push(b); carry = null; }

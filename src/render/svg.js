@@ -48,6 +48,50 @@ export function text(parent, x, y, str, { size = 12, anchor = 'start', cls = 'jg
   return t;
 }
 
+/** 구음 조각({small, main})의 폭 추정. */
+export function gueumWidth(parts, size, ratio = 0.6) {
+  return textWidth(parts.small, size * ratio) + textWidth(parts.main, size);
+}
+
+/**
+ * 구음을 쓴다. 꾸밈 글자(parts.small)는 작은 글씨(tspan)로, 본 글자는 큰 글씨로 한 줄에 잇는다.
+ * maxWidth를 넘으면 textLength로 눌러 맞춘다. 빈 구음이면 아무것도 만들지 않는다.
+ */
+export function gueumText(parent, x, y, parts, { size = 12, ratio = 0.6, anchor = 'start', cls = 'jg-text', maxWidth = null } = {}) {
+  if (!parts || (!parts.small && !parts.main)) return null;
+  const t = el('text', {
+    x: r2(x), y: r2(y), class: cls, 'font-size': size,
+    'text-anchor': anchor === 'start' ? null : anchor,
+  }, parent);
+  if (parts.small) el('tspan', { 'font-size': r2(size * ratio), class: 'jg-gueum-small' }, t).textContent = parts.small;
+  if (parts.main) el('tspan', {}, t).textContent = parts.main;
+  const w = gueumWidth(parts, size, ratio);
+  if (maxWidth && w > maxWidth) {
+    t.setAttribute('textLength', r2(Math.max(4, maxWidth)));
+    t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+  }
+  return t;
+}
+
+/** 글을 폭에 맞춰 줄로 나눈다(줄바꿈 문자 존중, 가능하면 빈칸에서 끊음). */
+export function wrapText(str, size, maxW) {
+  const out = [];
+  for (const para of String(str ?? '').split(/\r?\n/)) {
+    let cur = '';
+    for (const ch of para) {
+      if (cur && textWidth(cur + ch, size) > maxW) {
+        const sp = cur.lastIndexOf(' ');
+        if (sp > 0 && sp > cur.length - 12) { out.push(cur.slice(0, sp)); cur = cur.slice(sp + 1); }
+        else { out.push(cur); cur = ''; }
+        if (ch === ' ' && !cur) continue;
+      }
+      cur += ch;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+
 /** 직선 하나. */
 export function line(parent, x1, y1, x2, y2, cls = 'jg-rule', extra = {}) {
   return el('line', { x1: r2(x1), y1: r2(y1), x2: r2(x2), y2: r2(y2), class: cls, ...extra }, parent);
@@ -64,6 +108,47 @@ export function slotRect(parent, x, y, w, h, s, m, b, i) {
 /** 장단 묶음 g. */
 export function measureGroup(parent, s, m) {
   return el('g', { class: 'jg-measure', 'data-s': s, 'data-m': m }, parent);
+}
+
+/**
+ * 폭 목록을 maxW 안에 들도록 [start, end) 구간으로 고르게 나눈다(되도록 적은 수, 비슷한 길이).
+ * grouping이 있으면 묶음 경계에서만 끊고, maxW를 넘는 묶음은 박 단위로 쪼갠다.
+ */
+export function balancedChunks(widths, grouping, maxW) {
+  const units = [];
+  if (grouping && grouping.reduce((a, n) => a + n, 0) === widths.length) {
+    let b = 0;
+    for (const g of grouping) { units.push([b, b + g]); b += g; }
+  } else {
+    widths.forEach((_, b) => units.push([b, b + 1]));
+  }
+  const sum = (a, z) => widths.slice(a, z).reduce((acc, w) => acc + w, 0);
+  const pieces = [];
+  for (const [a, z] of units) {
+    if (sum(a, z) <= maxW || z - a === 1) pieces.push([a, z]);
+    else for (let b = a; b < z; b += 1) pieces.push([b, b + 1]);
+  }
+  const pw = pieces.map(([a, z]) => sum(a, z));
+  const greedy = (cap) => {
+    const out = [];
+    let cur = null;
+    let w = 0;
+    pieces.forEach(([a, z], j) => {
+      if (cur && w + pw[j] <= cap + 1e-6) { cur[1] = z; w += pw[j]; } else { cur = [a, z]; out.push(cur); w = pw[j]; }
+    });
+    return out;
+  };
+  const total = pw.reduce((a, w) => a + w, 0);
+  const minCap = Math.max(...pw);
+  const base = greedy(Math.max(maxW, minCap));
+  // 같은 개수로 나누면서 가장 긴 단이 가장 짧아지는 폭을 찾는다
+  let lo = Math.max(minCap, total / base.length);
+  let hi = Math.max(maxW, minCap);
+  for (let k = 0; k < 40; k += 1) {
+    const mid = (lo + hi) / 2;
+    if (greedy(mid).length <= base.length) hi = mid; else lo = mid;
+  }
+  return greedy(hi);
 }
 
 /**

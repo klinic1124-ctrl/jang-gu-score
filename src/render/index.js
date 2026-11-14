@@ -1,8 +1,11 @@
-// 악보 SVG 렌더러 — 공개 API: renderScore, updateHighlights.
+// 악보 SVG 렌더러 — 공개 API: renderScore, updateHighlights, symbolSvg.
 
 import { el, text, textWidth, FONT_STACK } from './svg.js';
 import { renderVertical, renderHorizontal } from './jeonggan.js';
 import { renderStaff } from './staff.js';
+import { renderCombined } from './combined.js';
+
+export { symbolSvg } from './symbols.js';
 
 const MARGIN = 24;
 
@@ -25,7 +28,13 @@ const STYLE = `
 .jg-staffline { stroke: var(--jg-ink, #111); stroke-width: 1.1; }
 .jg-bar { stroke: var(--jg-ink, #111); stroke-width: 1.2; }
 .jg-bar-thick { stroke: var(--jg-ink, #111); stroke-width: 3.5; }
-.jg-staff, .jg-header { pointer-events: none; }
+.jg-tab-frame { stroke: var(--jg-ink, #111); stroke-width: 2.2; fill: none; }
+.jg-tab-bar { stroke: var(--jg-ink, #111); stroke-width: 2.2; }
+.jg-tab-group { stroke: var(--jg-ink, #111); stroke-width: 1.6; }
+.jg-tab-beat { stroke: var(--jg-ink, #111); stroke-width: 1.1; }
+.jg-tab-row { stroke: var(--jg-ink, #111); stroke-width: 1; }
+.jg-tab-sub { stroke: var(--jg-line, #555); stroke-width: .7; stroke-opacity: .5; }
+.jg-staff, .jg-header, .jg-table, .jg-memo { pointer-events: none; }
 .jg-slot { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
 .jg-slot.is-playing { fill: var(--jg-play, #ffb02e); fill-opacity: .32; }
 .jg-slot.is-selected { fill: var(--jg-select, #2f6bff); fill-opacity: .2; stroke: var(--jg-select, #2f6bff); stroke-width: 1.5; }
@@ -74,6 +83,7 @@ export function renderScore(score, { width = 900, selection = null, playhead = n
   const ctx = { score, width, margin: MARGIN, settings: score.settings ?? {} };
   score.sections.forEach((sec, s) => {
     if (view === 'staff') y = renderStaff(root, ctx, sec, s, y);
+    else if (view === 'combined') y = renderCombined(root, ctx, sec, s, y);
     else if (view === 'horizontal') y = renderHorizontal(root, ctx, sec, s, y);
     else y = renderVertical(root, ctx, sec, s, y);
     y += 22;
