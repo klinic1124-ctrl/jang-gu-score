@@ -42,7 +42,7 @@
 }
 
 /* 악보 종이 색 — 렌더러가 쓰는 변수. 항상 밝은 종이. */
-.paper, .preview, .glyph {
+.paper, .preview, .glyph-cell {
   --jg-ink: #1f1c18;
   --jg-line: #8f8778;
   --jg-paper: #fffdf8;
@@ -351,7 +351,7 @@ fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 .help-table th, .help-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .help-table th { font-weight: 600; color: var(--muted); font-size: 12px; }
 .help-table.keys td:first-child { white-space: nowrap; width: 1%; }
-.help-table td.glyph { width: 52px; }
+.help-table td.glyph-cell { width: 52px; }
 .glyph { display: inline-block; }
 .glyph-svg { display: block; background: var(--jg-paper); border: 1px solid var(--border); border-radius: 4px; }
 .help-list { margin: 0; padding-left: 20px; }

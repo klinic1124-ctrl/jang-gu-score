@@ -363,7 +363,7 @@ function removeSection(s = state.sel.s) {
 }
 
 function sectionLabel(sec, s) {
-  return sec.name || `${s + 1}번째 구간`;
+  return sec.name || sec.jangdan || `${s + 1}번째 구간`;
 }
 
 /** 프리셋에서 구간을 만든다. fill: 'all' | 'first' | 'none' */
@@ -579,9 +579,9 @@ function buildHelp() {
   tbody.replaceChildren(...STROKE_IDS.map((id) => {
     const st = STROKES[id];
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="glyph"></td><td>${esc(st.label)}</td><td>${esc(st.gueum.banju || '—')} / ${esc(st.gueum.samul || '—')}</td>`
+    tr.innerHTML = `<td class="glyph-cell"></td><td>${esc(st.label)}</td><td>${esc(st.gueum.banju || '—')} / ${esc(st.gueum.samul || '—')}</td>`
       + `<td><kbd>${esc(st.key.toUpperCase())}</kbd></td><td>${esc(st.desc)}</td>`;
-    tr.querySelector('.glyph').append(glyphFor(id));
+    tr.querySelector('.glyph-cell').append(glyphFor(id));
     return tr;
   }));
 }
@@ -778,6 +778,11 @@ function submitSectionEdit(e) {
   $('#dlg-section-edit').close();
 }
 
+function openHelp() {
+  $('#dlg-help').showModal();
+  $('#dlg-help [data-close]').focus();
+}
+
 function openInfo() {
   $('#info-title').value = state.score.title;
   $('#info-author').value = state.score.author;
@@ -803,7 +808,7 @@ const ACTIONS = {
   save: saveFile,
   png: exportPng,
   print: () => window.print(),
-  help: () => $('#dlg-help').showModal(),
+  help: openHelp,
   info: openInfo,
   undo,
   redo,
@@ -898,7 +903,7 @@ function onKeyDown(e) {
   } else if (code === 'Minus' || code === 'NumpadSubtract') {
     zoomStep(-1);
   } else if (e.key === '?' || code === 'F1') {
-    $('#dlg-help').showModal();
+    openHelp();
   } else {
     return;
   }
