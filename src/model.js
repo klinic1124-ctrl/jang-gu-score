@@ -266,7 +266,8 @@ export function normalizeScore(data) {
       const beats = Math.max(1, Math.floor(Number(sec.meter?.beats) || 0));
       if (!Array.isArray(sec.measures) || sec.measures.length === 0) throw new Error('장단이 없는 구간이 있습니다');
       const grouping = Array.isArray(sec.meter?.grouping)
-        && sec.meter.grouping.reduce((a, n) => a + n, 0) === beats ? sec.meter.grouping.map(Number) : null;
+        && sec.meter.grouping.every((n) => Number.isInteger(n) && n > 0)
+        && sec.meter.grouping.reduce((a, n) => a + n, 0) === beats ? [...sec.meter.grouping] : null;
       const meter = { beats, division: sec.meter?.division === 3 ? 3 : 2, grouping };
       return {
         id: String(sec.id ?? newId('s')),

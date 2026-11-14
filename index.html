@@ -113,10 +113,12 @@
             <input type="number" id="measure-repeat" min="1" max="99" step="1" value="1">
             <span class="unit">번</span>
           </label>
-          <div class="field-inline">
-            <label for="variant-select">가락</label>
-            <select id="variant-select"></select>
-            <button type="button" data-action="measure-fill" id="btn-fill" title="선택한 장단을 이 가락으로 채우기">채우기</button>
+          <div class="field-stack">
+            <label for="variant-select">장단을 프리셋 가락으로 채우기</label>
+            <div class="field-inline">
+              <select id="variant-select"></select>
+              <button type="button" data-action="measure-fill" id="btn-fill" title="선택한 장단을 이 가락으로 채우기">채우기</button>
+            </div>
           </div>
         </section>
 

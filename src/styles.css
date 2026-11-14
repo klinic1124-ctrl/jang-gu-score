@@ -263,6 +263,8 @@ kbd {
 .field-inline > span:first-child, .field-inline > label { min-width: 4.5em; color: var(--muted); }
 .field-inline select { flex: 1 1 auto; min-width: 0; }
 .field-inline .unit { color: var(--muted); }
+.field-stack { display: flex; flex-direction: column; gap: 4px; }
+.field-stack > label { color: var(--muted); font-size: 12px; }
 
 /* ---------- 알림 ---------- */
 
@@ -310,7 +312,8 @@ dialog h2 { margin: 0; padding: 16px 20px 8px; font-size: 17px; }
 }
 .dlg-actions button { min-width: 80px; min-height: 34px; }
 
-.field { display: flex; flex-direction: column; gap: 3px; flex: 1 1 0; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.row > .field { flex: 1 1 0; }
 .field > span { font-size: 12px; color: var(--muted); }
 .field input[type="text"], .field select { width: 100%; }
 .row { display: flex; gap: 10px; }
@@ -332,8 +335,7 @@ fieldset.custom {
 fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 .preview-title { font-size: 12px; color: var(--muted); }
 .preview {
-  flex: 1 1 auto;
-  min-height: 160px;
+  height: 400px;
   padding: 8px;
   overflow: auto;
   background: var(--jg-paper);
@@ -370,7 +372,7 @@ fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
   .panel + .panel { padding-top: 0; border-top: 0; }
   .brand { display: none; }
   .two-col { grid-template-columns: minmax(0, 1fr); }
-  .preview { min-height: 120px; }
+  .preview { height: 240px; }
 }
 @media (max-width: 640px) {
   .score-scroll { padding: 8px; }

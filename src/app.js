@@ -54,7 +54,10 @@ function init() {
     try { state.score = deserialize(saved); } catch { state.score = null; }
     if (!state.score) setTimeout(() => toast('저장된 악보를 읽지 못해 기본 악보로 시작합니다.'), 0);
   }
-  if (!state.score) state.score = defaultScore();
+  if (!state.score) {
+    state.score = defaultScore();
+    saveNow();
+  }
   state.sel = clampPos(state.score, state.sel);
 
   buildPalette();
@@ -373,6 +376,7 @@ function buildPresetSection(id, { variant = 0, measures = 1, fill = 'all', name 
     else out.push(k === 0 ? first : { ...clone(first), id: newId('m') });
   }
   sec.measures = out;
+  sec.name = name; // 이름을 비워 두면 머리말에 장단 이름만 나온다
   if (tempo) sec.tempo = tempo;
   return sec;
 }
@@ -505,16 +509,18 @@ function updateUi() {
   const key = preset ? preset.id : '';
   if (vs.dataset.preset !== key) {
     vs.dataset.preset = key;
+    vs.title = '';
     vs.replaceChildren(...(preset
       ? preset.variants.map((v, k) => new Option(v.name || `가락 ${k + 1}`, k))
       : [new Option('(가락 없음)', '')]));
   }
   vs.disabled = !preset;
+  vs.title = vs.selectedOptions[0]?.textContent ?? '';
   $('#btn-fill').disabled = !preset;
 
   const g = sec.meter.grouping ? ` (${sec.meter.grouping.join('+')})` : '';
   $('#section-info').innerHTML = `<b>${esc(sectionLabel(sec, pos.s))}</b> — ${esc(sec.jangdan || '사용자 장단')}`
-    + `<br><span class="muted">${sec.meter.beats}박${g} · ${sec.meter.division}분박 · ♩=${sec.tempo} · 장단 ${sec.measures.length}개</span>`;
+    + `<br><span class="muted">${sec.meter.beats}박${g} · ${sec.meter.division}분박 · 빠르기 ${sec.tempo} · 장단 ${sec.measures.length}개</span>`;
   $('#btn-sec-up').disabled = pos.s === 0;
   $('#btn-sec-down').disabled = pos.s >= sc.sections.length - 1;
   $('#btn-sec-del').disabled = sc.sections.length <= 1;
@@ -946,6 +952,7 @@ function bindEvents() {
   $('#opt-advance').addEventListener('change', (e) => { state.opts.autoAdvance = e.target.checked; saveOptions(); });
   $('#opt-preview').addEventListener('change', (e) => { state.opts.previewSound = e.target.checked; saveOptions(); });
   $('#opt-add-fill').addEventListener('change', (e) => { state.opts.addFill = e.target.value; saveOptions(); e.target.blur(); });
+  $('#variant-select').addEventListener('change', (e) => { e.target.title = e.target.selectedOptions[0]?.textContent ?? ''; });
   $('#measure-repeat').addEventListener('change', (e) => setRepeat(e.target.value));
 
   // 대화상자
