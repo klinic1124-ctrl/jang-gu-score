@@ -50,7 +50,7 @@ function tone(ctx, dest, when, { type = 'sine', from, to, sweep, peak, decay }) 
 
 /** 북편: 피치가 빠르게 내려가는 낮은 북소리 + 짧은 저역 노이즈 어택. */
 function gung(ctx, dest, when, vol) {
-  tone(ctx, dest, when, { from: 110, to: 58, sweep: 0.16, peak: 0.9 * vol, decay: 0.42 });
+  tone(ctx, dest, when, { from: 110, to: 58, sweep: 0.16, peak: 0.7 * vol, decay: 0.42 });
   tone(ctx, dest, when, { type: 'triangle', from: 190, to: 90, sweep: 0.05, peak: 0.25 * vol, decay: 0.12 });
   noiseBurst(ctx, dest, when, { type: 'lowpass', freq: 500, peak: 0.5 * vol, decay: 0.04 });
 }
