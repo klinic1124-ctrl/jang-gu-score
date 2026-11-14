@@ -35,7 +35,7 @@ export const PRESETS = [
     id: 'seryeongsan',
     name: '세령산·가락덜이',
     category: '정악',
-    meter: { beats: 10, division: 3, grouping: [3, 2, 2, 3] },
+    meter: { beats: 10, division: 2, grouping: [3, 2, 2, 3] },
     tempo: 60,
     tempoRange: null,
     variants: [
@@ -48,7 +48,7 @@ export const PRESETS = [
     id: 'dodeuri',
     name: '도드리',
     category: '정악',
-    meter: { beats: 6, division: 3, grouping: null },
+    meter: { beats: 6, division: 2, grouping: null },
     tempo: 60,
     tempoRange: null,
     variants: [
@@ -76,7 +76,7 @@ export const PRESETS = [
     id: 'chwita',
     name: '취타',
     category: '정악',
-    meter: { beats: 12, division: 3, grouping: null },
+    meter: { beats: 12, division: 2, grouping: null },
     tempo: 72,
     tempoRange: null,
     variants: [
@@ -89,7 +89,7 @@ export const PRESETS = [
     id: 'gilgunak',
     name: '길군악(행악)',
     category: '정악',
-    meter: { beats: 8, division: 3, grouping: null },
+    meter: { beats: 8, division: 2, grouping: null },
     tempo: 80,
     tempoRange: null,
     variants: [
@@ -102,7 +102,7 @@ export const PRESETS = [
     id: 'gagok16',
     name: '가곡 16박',
     category: '정악',
-    meter: { beats: 16, division: 3, grouping: [3, 3, 2, 3, 3, 2] },
+    meter: { beats: 16, division: 2, grouping: [3, 3, 2, 3, 3, 2] },
     tempo: 30,
     tempoRange: [20, 40],
     variants: [
@@ -115,7 +115,7 @@ export const PRESETS = [
     id: 'gagok10',
     name: '가곡 10박(편장단)',
     category: '정악',
-    meter: { beats: 10, division: 3, grouping: [3, 2, 2, 3] },
+    meter: { beats: 10, division: 2, grouping: [3, 2, 2, 3] },
     tempo: 76,
     tempoRange: [75, 80],
     variants: [
@@ -128,7 +128,7 @@ export const PRESETS = [
     id: 'sijo5',
     name: '시조 5박',
     category: '정악',
-    meter: { beats: 5, division: 3, grouping: null },
+    meter: { beats: 5, division: 2, grouping: null },
     tempo: 30,
     tempoRange: null,
     variants: [
@@ -141,7 +141,7 @@ export const PRESETS = [
     id: 'sijo8',
     name: '시조 8박',
     category: '정악',
-    meter: { beats: 8, division: 3, grouping: null },
+    meter: { beats: 8, division: 2, grouping: null },
     tempo: 30,
     tempoRange: null,
     variants: [

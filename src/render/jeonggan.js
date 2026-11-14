@@ -28,7 +28,7 @@ export function renderVertical(parent, ctx, sec, s, y) {
 
   y += drawSectionHead(parent, sec, s, width - margin, y, 'end') + 4;
 
-  const baseH = baseBeatSize(sec, sec.meter.beats > 12 ? 32 : 44, 15);
+  const baseH = baseBeatSize(sec, sec.meter.beats > 12 ? 32 : 44, 21);
   const symW = 30;
   const gueW = gue ? 40 : 0;
   const colW = symW + gueW;
@@ -55,7 +55,7 @@ export function renderVertical(parent, ctx, sec, s, y) {
         if (b > 0) line(g, x, by, x + colW, by, bounds.has(b) ? 'jg-rule-bold' : 'jg-rule');
         const k = beat.slots.length;
         const sh = h / k;
-        const size = Math.min(17, sh * 0.8);
+        const size = Math.min(17, sh * 0.72);
         beat.slots.forEach((slot, i) => {
           const cy = by + (i + 0.5) * sh;
           const cx = gue ? x + symW / 2 + 2 : x + colW / 2 + 2; // 왼쪽에 강세 자리
