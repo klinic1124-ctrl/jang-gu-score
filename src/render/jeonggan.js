@@ -3,7 +3,7 @@
 import { beatUnits, gueumOf } from '../model.js';
 import { el, text, line, r2, slotRect, measureGroup, chunkBeats, groupBoundaries } from './svg.js';
 import { drawSymbol } from './symbols.js';
-import { drawSectionHead } from './index.js';
+import { drawSectionHead } from './head.js';
 
 /** 구간 전체에서 분박 칸이 minSlot 이상이 되도록 기본 박 크기를 정한다(박 크기는 units에 비례). */
 function baseBeatSize(sec, minBase, minSlot) {
