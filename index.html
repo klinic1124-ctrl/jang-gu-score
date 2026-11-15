@@ -287,8 +287,18 @@
             <label><input type="radio" name="print-orient" value="landscape"><span>가로</span></label>
           </div>
         </div>
+        <label class="field">
+          <span>한 쪽 줄 수</span>
+          <select id="print-rows">
+            <option value="0">자동</option>
+            <option value="1">1줄</option><option value="2">2줄</option><option value="3">3줄</option>
+            <option value="4">4줄</option><option value="5">5줄</option><option value="6">6줄</option>
+            <option value="7">7줄</option><option value="8">8줄</option><option value="9">9줄</option>
+            <option value="10">10줄</option><option value="11">11줄</option><option value="12">12줄</option>
+          </select>
+        </label>
         <p class="print-info" id="print-info" aria-live="polite"></p>
-        <p class="hint">배율을 줄이면 악보가 작아지고 한 줄에 장단이 더 많이 들어갑니다. 줄은 쪽 경계에서 잘리지 않고 다음 쪽으로 넘어갑니다.</p>
+        <p class="hint">배율을 줄이면 악보가 작아지고 한 줄에 장단이 더 많이 들어갑니다. 줄은 쪽 경계에서 잘리지 않고 다음 쪽으로 넘어갑니다. 줄 수를 정하면 쪽마다 그 수만큼 넣고 쪽 높이에 고르게 펼치며, 넘치면 쪽에 맞게 줄어듭니다.</p>
         <div><button type="button" data-action="print-fit" title="화면에서 한 줄에 보이는 장단 수만큼 들어가는 가장 큰 배율로 맞춥니다">한 줄에 맞추기</button></div>
       </div>
       <div class="dlg-actions">
@@ -346,7 +356,7 @@
             <li><b>드르닥따</b>는 한 칸 안에 드르닥과 따를 이어 치는 타법입니다. <b>떡</b>(⊗에 가로선)은 채편 변죽을 막아 치고, <b>국</b>(⊗)은 북편을 반쯤 막아 칩니다.</li>
             <li>구간 설정에서 빠르기 범위(예: ♩=100~120)와 새 장단의 박당 기본 칸 수를 정할 수 있습니다. 재생은 앞의 빠르기 값으로 합니다.</li>
             <li>구간 머리말(구간 이름)을 누르면 그 구간의 이름과 빠르기를 바꿀 수 있습니다.</li>
-            <li><b>인쇄</b>를 누르면 크기(배율)와 용지 방향을 정할 수 있고, 배율을 줄이면 한 줄에 장단이 더 들어갑니다. 인쇄 대화상자에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>
+            <li><b>인쇄</b>를 누르면 크기(배율)와 용지 방향을 정할 수 있고, 배율을 줄이면 한 줄에 장단이 더 들어가고, 한 쪽 줄 수를 정하면 단 사이를 고르게 벌려 메모할 여백을 둘 수 있습니다. 인쇄 대화상자에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>
           </ul>
         </section>
       </div>

@@ -31,7 +31,7 @@ const state = {
   opts: {
     autoAdvance: true, previewSound: true, addFill: 'empty',
     zoom: 1, tempoScale: 1, loop: false, metronome: false,
-    printScale: 1, printLandscape: false,
+    printScale: 1, printLandscape: false, printRows: 0,
   },
 };
 
@@ -79,6 +79,7 @@ function loadOptions() {
   if (!ZOOMS.includes(state.opts.zoom)) state.opts.zoom = 1;
   state.opts.tempoScale = Math.min(1.5, Math.max(0.5, state.opts.tempoScale));
   state.opts.printScale = Math.min(1.5, Math.max(0.5, Math.round(state.opts.printScale * 20) / 20));
+  state.opts.printRows = Math.min(12, Math.max(0, Math.round(state.opts.printRows) || 0));
 }
 
 function saveOptions() { io.storageSet(OPTS_KEY, JSON.stringify(state.opts)); }
@@ -489,9 +490,9 @@ async function exportPng() {
 }
 
 // ---------- 인쇄 ----------
-// 인쇄 설정(배율·용지 방향)으로 강조 없이 다시 그리고, 줄 경계에서 쪽을 나눠 쪽마다 SVG 하나로 넣는다.
+// 인쇄 설정(배율·용지 방향·쪽당 줄 수)으로 강조 없이 다시 그리고, 줄 경계에서 쪽을 나눠 쪽마다 SVG 하나로 넣는다.
 
-const printOpts = () => ({ scale: state.opts.printScale, landscape: state.opts.printLandscape });
+const printOpts = () => ({ scale: state.opts.printScale, landscape: state.opts.printLandscape, rows: state.opts.printRows });
 
 function applyPageRule() {
   let style = $('#print-page-style');
@@ -515,6 +516,7 @@ function afterPrint() { render(); }
 function openPrint() {
   $('#print-scale').value = Math.round(state.opts.printScale * 100);
   for (const r of document.querySelectorAll('input[name="print-orient"]')) r.checked = (r.value === 'landscape') === state.opts.printLandscape;
+  $('#print-rows').value = state.opts.printRows;
   updatePrintInfo();
   $('#dlg-print').showModal();
   $('#btn-print-go').focus();
@@ -523,8 +525,9 @@ function openPrint() {
 function updatePrintInfo() {
   const o = printOpts();
   $('#print-scale-label').textContent = `${Math.round(o.scale * 100)}%`;
-  const { perLine, pages } = layoutPrint(state.score, o);
-  $('#print-info').textContent = `A4 ${o.landscape ? '가로' : '세로'} · 한 줄에 장단 ${perLine}개 · 약 ${pages.length}쪽`;
+  const { perLine, pages, perPage, shrink } = layoutPrint(state.score, o);
+  const squeezed = shrink < 1 ? ` · 줄 수에 맞추려 ${Math.round(shrink * 100)}% 축소됨` : '';
+  $('#print-info').textContent = `A4 ${o.landscape ? '가로' : '세로'} · 한 줄에 장단 ${perLine}개 · 한 쪽에 ${perPage}줄 · 약 ${pages.length}쪽${squeezed}`;
 }
 
 function setPrintOpts(patch) {
@@ -1079,6 +1082,7 @@ function bindEvents() {
   $('#form-info').addEventListener('submit', submitInfo);
   $('#form-print').addEventListener('submit', submitPrint);
   $('#print-scale').addEventListener('input', (e) => setPrintOpts({ printScale: Number(e.target.value) / 100 }));
+  $('#print-rows').addEventListener('change', (e) => setPrintOpts({ printRows: Number(e.target.value) }));
   for (const r of document.querySelectorAll('input[name="print-orient"]')) {
     r.addEventListener('change', () => setPrintOpts({ printLandscape: r.value === 'landscape' }));
   }

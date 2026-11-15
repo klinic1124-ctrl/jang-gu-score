@@ -409,7 +409,7 @@ fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
   .workspace { display: block; }
   .score-scroll { overflow: visible; padding: 0; scrollbar-gutter: auto; box-shadow: none !important; }
   .paper { padding: 0; border: 0; box-shadow: none; width: auto; background: #fff; --jg-paper: #fff; --jg-select: transparent; --jg-play: transparent; }
-  .paper svg { width: 100% !important; height: auto !important; }
+  .paper svg:not(.print-row) { width: 100% !important; height: auto !important; }
   /* 인쇄용 SVG는 쪽마다 하나(줄 경계에서 나뉨) */
   .paper svg.print-page { break-inside: avoid; break-after: page; }
   .paper svg.print-page:last-child { break-after: auto; }
