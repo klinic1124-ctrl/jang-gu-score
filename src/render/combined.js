@@ -3,12 +3,11 @@
 // 표의 열은 분박 칸 하나씩이고, 리듬보의 음표 머리는 그 열의 왼쪽 가장자리 가까이에 온다.
 // 단 나눔: 장단 하나 = 한 단이 기본. 길면 묶음(grouping)·박 경계에서 고르게 나누고, 짧으면 한 단에 여러 장단.
 
-import { beatUnits } from '../model.js';
+import { beatUnits, gueumParts } from '../model.js';
 import { el, text, line, r2, slotRect, measureGroup, balancedChunks, groupBoundaries, gueumText, gueumWidth } from './svg.js';
 import { drawSymbol } from './symbols.js';
 import { drawSectionHead } from './head.js';
 import { analyzeBeat, drawBeat, timeSig, drawTimeSig } from './notes.js';
-import { displayParts } from './strokes.js';
 import { drawMemo } from './jeonggan.js';
 
 const GUTTER = 28;     // 단 왼쪽(박자표·장단 번호) 자리
@@ -53,8 +52,6 @@ function layoutSystems(sec, avail, Pcomf) {
 export function renderCombined(parent, ctx, sec, s, y) {
   const { width, margin, settings } = ctx;
   const gue = !!settings.showGueum;
-  const symStyle = settings.symbolStyle === 'jeongak' ? 'jeongak' : 'minsok';
-  const gStyle = settings.gueumStyle;
   const bounds = groupBoundaries(sec.meter);
 
   y += drawSectionHead(parent, sec, s, margin, y) + 2;
@@ -118,16 +115,18 @@ export function renderCombined(parent, ctx, sec, s, y) {
           if (i > 0) line(tableG, cx, tabTop, cx, tabBot, 'jg-tab-sub');
           if (slot) {
             const hx = cx + Math.min(HEADX, swd / 2);
-            drawSymbol(g, slot, hx, symY, symSize, { style: symStyle, accentAt: null, span: [cx + 3, cx + swd - 3] });
+            // 드르닥따처럼 칸 안에서 뒤따르는 타점이 있으면 그 음표 자리에 뒤 부호(─)를 맞춘다
+            const tailX = slot.t === 'deureudaktta' ? hx + swd / 2 : null;
+            drawSymbol(g, slot, hx, symY, symSize, { accentAt: null, span: [cx + 3, cx + swd - 3], tailX });
             if (gue) {
-              const parts = displayParts(slot, gStyle);
+              const parts = gueumParts(slot);
               if (parts.small || parts.main) gueums.push({ x: cx + 3, colX: cx, parts, size: fs });
             }
           }
           rects.push([cx, top + 2, swd, tabBot - top - 2, b, i]);
         });
-        const info = analyzeBeat(sec, beat, gStyle);
-        if (!blank) drawBeat(g, info, (t) => bx + (t / U) * bw + Math.min(HEADX, swd / 2), lineY, { style: gStyle });
+        const info = analyzeBeat(sec, beat);
+        if (!blank) drawBeat(g, info, (t) => bx + (t / U) * bw + Math.min(HEADX, swd / 2), lineY);
         x += bw;
       }
       const mEnd = it.b1 === mea.beats.length;

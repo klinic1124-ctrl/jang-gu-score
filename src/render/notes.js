@@ -4,7 +4,7 @@
 import { STROKES, beatUnits } from '../model.js';
 import { el, text, line, r2 } from './svg.js';
 import { drawAccent } from './symbols.js';
-import { voicesOf, graceOf } from './strokes.js';
+import { voicesOf, graceOf, tailOf } from './strokes.js';
 
 export const STEM = 26;          // 기둥 길이
 export const RX = 4.6;           // 음표 머리 반지름
@@ -62,11 +62,13 @@ export function drawTimeSig(g, x, lineY, sig) {
 /**
  * 박 하나를 성부별 조각으로 푼다.
  * 소리의 길이는 '다음 타점(어느 성부든) 또는 쉼 칸'까지이고, 성부에 소리가 없는 동안은 그 성부에 쉼표를 둔다.
+ * 뒤따르는 타점이 있는 타법(STROKES.tail, 예: 드르닥따)은 칸을 tail+1등분해 본 타점과 채편 타점을 나눠 적는다.
  * 박 안에 타점이 하나도 없으면(앞 소리가 이어짐) 아무것도 그리지 않는다.
  * 반환: { U, k, a, tuplet, voices: { 1: 조각[], -1: 조각[] }, empty }
- * 조각: { t(박 시작부터 실제 시간, 8분음표 단위), i, slot, rest, val, base, dots, flags, attack, tieNext, sub, tremolo, dir }
+ * 조각: { t(박 시작부터 실제 시간, 8분음표 단위), i, slot, rest, tail, val, base, dots, flags, attack, tieNext, sub, tremolo, dir }
+ *   tail = 같은 칸 안에서 뒤따르는 타점(꾸밈음·구음·강세 없음)
  */
-export function analyzeBeat(sec, beat, style = 'banju') {
+export function analyzeBeat(sec, beat) {
   const U = beatUnits(sec, beat);
   const k = beat.slots.length;
   const a = U / k;
@@ -78,7 +80,7 @@ export function analyzeBeat(sec, beat, style = 'banju') {
     for (const dir of [1, -1]) {
       let t = 0;
       voices[dir] = decompose(U).map((v) => {
-        const p = { t, i: 0, slot: null, rest: true, val: v[0], base: v[1], dots: v[2], flags: FLAGS[v[1]] ?? 0, attack: false, sub: false, tieNext: false, tremolo: false, dir };
+        const p = { t, i: 0, slot: null, rest: true, tail: false, val: v[0], base: v[1], dots: v[2], flags: FLAGS[v[1]] ?? 0, attack: false, sub: false, tieNext: false, tremolo: false, dir };
         t += v[0];
         return p;
       });
@@ -86,24 +88,38 @@ export function analyzeBeat(sec, beat, style = 'banju') {
     return { U, k, a, tuplet: 0, voices, empty: false };
   }
 
-  // 실제로 쓰인 칸 경계만 남겨 가장 단순한 음표 값을 고른다(예: 4칸 중 0·2칸만 치면 잇단음 불필요)
-  const P = [...new Set([0, ...onsets, k])].sort((x, y) => x - y);
+  // 칸을 f개 잔칸으로 나눈 가상 격자(뒤따르는 타점이 없으면 f = 1)
+  let f = 1;
+  for (const i of onsets) { const n = tailOf(beat.slots[i]) + 1; f = (f * n) / gcd(f, n); }
+  const K = k * f;
+  const av = U / K; // 잔칸 하나의 실제 길이
+  // 잔칸 위치 → 사건 { slot, i, tail }
+  const events = new Map();
+  for (const i of onsets) {
+    const slot = beat.slots[i];
+    events.set(i * f, { slot, i, tail: false });
+    const n = tailOf(slot);
+    for (let j = 1; j <= n; j += 1) events.set(i * f + (j * f) / (n + 1), { slot, i, tail: true });
+  }
+
+  // 실제로 쓰인 경계만 남겨 가장 단순한 음표 값을 고른다(예: 4칸 중 0·2칸만 치면 잇단음 불필요)
+  const P = [...new Set([0, ...events.keys(), K])].sort((x, y) => x - y);
   let d = 0;
   for (let j = 1; j < P.length; j += 1) d = gcd(d, P[j] - P[j - 1]);
-  const { w, tuplet } = slotNotation(U, k / d);
-  const ratio = (a * d) / w; // 표기 1단위당 실제 시간
+  const { w, tuplet } = slotNotation(U, K / d);
+  const ratio = (av * d) / w; // 표기 1단위당 실제 시간
 
   for (const dir of [1, -1]) {
     const segs = [];
     for (let j = 0; j < P.length - 1; j += 1) {
       const p = P[j];
       const n = P[j + 1] - p;
-      const slot = beat.slots[p];
-      const on = !!slot && voicesOf(slot)[dir > 0 ? 'up' : 'down'];
+      const ev = events.get(p);
+      const on = !!ev && (ev.tail ? dir > 0 : voicesOf(ev.slot)[dir > 0 ? 'up' : 'down']);
       const last = segs[segs.length - 1];
-      if (on) segs.push({ p, n, slot });
+      if (on) segs.push({ p, n, slot: ev.slot, i: ev.i, tail: ev.tail });
       else if (last && last.rest) last.n += n;
-      else segs.push({ p, n, rest: true, slot: null });
+      else segs.push({ p, n, rest: true, slot: null, i: Math.floor(p / f), tail: false });
     }
     const pieces = [];
     for (const sg of segs) {
@@ -117,7 +133,7 @@ export function analyzeBeat(sec, beat, style = 'banju') {
       let cum = 0;
       parts.forEach(({ v, sub }, j) => {
         pieces.push({
-          t: sg.p * a + cum * ratio, i: sg.p, slot: sg.slot, rest: !!sg.rest,
+          t: sg.p * av + cum * ratio, i: sg.i, slot: sg.slot, rest: !!sg.rest, tail: !!sg.tail,
           val: v[0], base: v[1], dots: v[2], flags: FLAGS[v[1]] ?? 0,
           attack: !sg.rest && j === 0, sub, tieNext: !sg.rest && !st.roll && j < parts.length - 1,
           tremolo: tremolo && j === 0, dir,
@@ -252,7 +268,7 @@ function drawBeams(g, run, dir, lineY) {
  * 박 하나를 그린다. xOf(t) = 박 시작부터 t(8분음표 단위)인 음표 머리의 x.
  * onAttack(slot, x): 타점마다 불림(구음 쓰기 등).
  */
-export function drawBeat(g, info, xOf, lineY, { style = 'banju', onAttack = null } = {}) {
+export function drawBeat(g, info, xOf, lineY, { onAttack = null } = {}) {
   if (info.empty) return;
   const up = info.voices[1];
   const down = info.voices[-1];
@@ -276,8 +292,8 @@ export function drawBeat(g, info, xOf, lineY, { style = 'banju', onAttack = null
     h.sc = sc;
     const dotX = x + (h.up && h.upFlags ? 11 : 8);
     for (let d = 0; d < p.dots; d += 1) el('circle', { cx: r2(dotX + d * 4), cy: r2(lineY - 3.5), r: 1.5, class: 'jg-dot' }, g);
-    if (p.attack) {
-      const gr = graceOf(p.slot, style);
+    if (p.attack && !p.tail) {
+      const gr = graceOf(p.slot);
       if (gr.n) drawGrace(g, x, lineY, gr.n, gr.dir);
       if (onAttack) onAttack(p.slot, x);
     }
@@ -329,7 +345,7 @@ export function drawBeat(g, info, xOf, lineY, { style = 'banju', onAttack = null
     });
   }
   for (const h of heads.values()) {
-    if (!h.p.attack || !h.p.slot.accent) continue;
+    if (!h.p.attack || h.p.tail || !h.p.slot.accent) continue;
     if (h.up) drawAccent(g, h.x + 1, lineY - STEM - 7, 9);
     else drawAccent(g, h.x - 1, lineY + STEM + 7, 9);
   }
@@ -354,7 +370,7 @@ export function drawBeat(g, info, xOf, lineY, { style = 'banju', onAttack = null
 }
 
 /** 이웃 타점 사이에 필요한 최소 간격(px): 꾸밈음 자리까지. */
-export function attackGap(slot, style = 'banju') {
-  const n = graceOf(slot, style).n;
+export function attackGap(slot) {
+  const n = graceOf(slot).n;
   return n >= 2 ? 30 : n ? 25 : 17;
 }

@@ -1,8 +1,7 @@
 // 정간보(세로·가로) 렌더러.
 
-import { beatUnits } from '../model.js';
+import { beatUnits, gueumParts } from '../model.js';
 import { el, text, line, r2, slotRect, measureGroup, chunkBeats, groupBoundaries, gueumText, wrapText } from './svg.js';
-import { displayParts } from './strokes.js';
 import { drawSymbol } from './symbols.js';
 import { drawSectionHead } from './head.js';
 
@@ -70,10 +69,10 @@ export function renderVertical(parent, ctx, sec, s, y) {
         beat.slots.forEach((slot, i) => {
           const cy = by + (i + 0.5) * sh;
           const cx = gue ? x + symW / 2 + 2 : x + colW / 2 + 2; // 왼쪽에 강세 자리
-          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left', style: settings.symbolStyle, span: [x + 6, x + symW - 3] });
+          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left', span: [x + 6, x + symW - 3] });
           if (gue && slot) {
             const fs = Math.min(11, Math.max(8, sh * 0.62));
-            gueumText(g, x + symW - 2, cy + fs * 0.36, displayParts(slot, settings.gueumStyle), { size: fs, maxWidth: gueW - 5 });
+            gueumText(g, x + symW - 2, cy + fs * 0.36, gueumParts(slot), { size: fs, maxWidth: gueW - 5 });
           }
           rects.push([x, by + i * sh, colW, sh, b, i]);
         });
@@ -133,8 +132,8 @@ export function renderHorizontal(parent, ctx, sec, s, y) {
         const size = Math.min(16, sw * 0.7, rowH * 0.5);
         beat.slots.forEach((slot, i) => {
           const cx = x + (i + 0.5) * sw;
-          drawSymbol(g, slot, cx, y + symY, size, { accentAt: 'above', style: settings.symbolStyle, span: [x + i * sw + 3, x + (i + 1) * sw - 3] });
-          if (gue && slot) gueumText(g, cx, y + 39, displayParts(slot, settings.gueumStyle), { size: 10, anchor: 'middle', maxWidth: sw - 3 });
+          drawSymbol(g, slot, cx, y + symY, size, { accentAt: 'above', span: [x + i * sw + 3, x + (i + 1) * sw - 3] });
+          if (gue && slot) gueumText(g, cx, y + 39, gueumParts(slot), { size: 10, anchor: 'middle', maxWidth: sw - 3 });
           rects.push([x + i * sw, y, sw, rowH, b, i]);
         });
         x += w;

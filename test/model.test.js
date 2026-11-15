@@ -94,7 +94,7 @@ describe('생성 함수', () => {
     const sc = createScore();
     assert.equal(sc.version, SCORE_VERSION);
     assert.equal(sc.sections.length, 1);
-    assert.deepEqual(sc.settings, { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true });
+    assert.deepEqual(sc.settings, { view: 'combined', showGueum: true });
   });
 
   test('createBeat', () => {
@@ -103,10 +103,9 @@ describe('생성 함수', () => {
 });
 
 describe('조회 도우미', () => {
-  test('gueumOf: 체계별 구음, 빈 칸·쉼은 빈 문자열', () => {
-    assert.equal(gueumOf({ t: 'kung' }, 'banju'), '쿵');
-    assert.equal(gueumOf({ t: 'kung' }, 'samul'), '궁');
-    assert.equal(gueumOf({ t: 'deok' }, 'samul'), '따');
+  test('gueumOf: 민속악식 기본 구음, 빈 칸·쉼은 빈 문자열', () => {
+    assert.equal(gueumOf({ t: 'kung' }), '궁');
+    assert.equal(gueumOf({ t: 'deok' }), '따');
     assert.equal(gueumOf(null), '');
     assert.equal(gueumOf({ t: 'rest' }), '');
   });
@@ -304,7 +303,7 @@ describe('insert/duplicate/deleteMeasure 경계', () => {
 describe('serialize / deserialize', () => {
   function richScore() {
     const sc = createScore({ title: '왕복', author: '나', memo: '메모' });
-    sc.settings = { view: 'staff', symbolStyle: 'jeongak', gueumStyle: 'samul', showGueum: false };
+    sc.settings = { view: 'staff', showGueum: false };
     sc.sections = [
       createSection({
         name: '엇모리', jangdan: '엇모리', meter: { beats: 4, division: 2, grouping: null }, tempo: 120,
@@ -394,17 +393,17 @@ describe('normalizeScore', () => {
     assert.equal(sc.title, '제목 없음');
     assert.equal(sc.author, '');
     assert.equal(sc.memo, '');
-    assert.deepEqual(sc.settings, { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true });
+    assert.deepEqual(sc.settings, { view: 'combined', showGueum: true });
   });
 
-  test('설정값 보정: 잘못된 view·gueumStyle은 기본값, showGueum은 false만 끈다', () => {
-    const data = { sections: [baseSection()], settings: { view: 'weird', gueumStyle: 'x', showGueum: 0 } };
+  test('설정값 보정: 잘못된 view는 기본값(combined), showGueum은 false만 끈다, 옛 symbolStyle·gueumStyle은 버린다', () => {
+    const data = { sections: [baseSection()], settings: { view: 'weird', gueumStyle: 'x', symbolStyle: 'minsok', showGueum: 0 } };
     const sc = normalizeScore(data);
-    assert.equal(sc.settings.view, 'vertical');
-    assert.equal(sc.settings.gueumStyle, 'banju');
+    assert.equal(sc.settings.view, 'combined');
     assert.equal(sc.settings.showGueum, true);
+    assert.deepEqual(Object.keys(sc.settings).sort(), ['showGueum', 'view']);
     const off = normalizeScore({ sections: [baseSection()], settings: { view: 'horizontal', gueumStyle: 'samul', showGueum: false } });
-    assert.deepEqual(off.settings, { view: 'horizontal', symbolStyle: 'jeongak', gueumStyle: 'samul', showGueum: false });
+    assert.deepEqual(off.settings, { view: 'horizontal', showGueum: false });
   });
 
   test('tempo는 10~400으로 제한, 숫자가 아니면 60', () => {
@@ -733,7 +732,7 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
   test('국(guk): 북편 반뮤트 타법, 단축키 q, 떡과 구별', () => {
     assert.ok(STROKES.guk.gung && !STROKES.guk.chae && STROKES.guk.mute);
     assert.equal(STROKES.guk.key, 'q');
-    assert.equal(gueumOf({ t: 'guk' }, 'banju'), '국');
+    assert.equal(gueumOf({ t: 'guk' }), '국');
     assert.ok(!STROKES.tteok.mute && STROKES.tteok.chae);
   });
 
@@ -767,38 +766,77 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
     assert.throws(() => measureFromPattern('nope:국'), /알 수 없는 타법/);
   });
 
-  test('gueumOf: slot.g가 체계별 기본 구음보다 우선', () => {
-    assert.equal(gueumOf({ t: 'tteok', g: '따' }, 'banju'), '따');
-    assert.equal(gueumOf({ t: 'guk' }, 'minsok'), '국');
-    assert.equal(gueumOf({ t: 'deok', g: '딱' }, 'samul'), '딱');
-    assert.equal(gueumOf({ t: 'tteok' }, 'minsok'), '떡');
+  test('gueumOf: slot.g가 기본 구음보다 우선', () => {
+    assert.equal(gueumOf({ t: 'tteok', g: '따' }), '따');
+    assert.equal(gueumOf({ t: 'guk' }), '국');
+    assert.equal(gueumOf({ t: 'deok', g: '딱' }), '딱');
+    assert.equal(gueumOf({ t: 'tteok' }), '떡');
   });
 
-  test("gueumOf: style 'minsok'", () => {
-    assert.equal(gueumOf({ t: 'deok' }, 'minsok'), '따');
-    assert.equal(gueumOf({ t: 'kung' }, 'minsok'), '궁');
-    assert.equal(gueumOf({ t: 'gideok' }, 'minsok'), '기닥');
-    assert.equal(gueumOf({ t: 'deong' }, 'minsok'), '덩');
+  test('gueumOf: 민속악식 기본 구음', () => {
+    assert.equal(gueumOf({ t: 'deok' }), '따');
+    assert.equal(gueumOf({ t: 'kung' }), '궁');
+    assert.equal(gueumOf({ t: 'gideok' }), '기닥');
+    assert.equal(gueumOf({ t: 'deong' }), '덩');
+    assert.equal(gueumOf({ t: 'gudeong' }), '구덩');
+    assert.equal(gueumOf({ t: 'ttadeurak' }), '드르닥');
+    assert.equal(gueumOf({ t: 'byeondeurak' }), '드르닥');
+    assert.equal(gueumOf({ t: 'deureudaktta' }), '드르닥따');
+    assert.equal(gueumOf({ t: 'gugung' }), '구궁');
   });
 
-  test('gueumOf: 없는 style은 banju 구음으로 대체', () => {
-    assert.equal(gueumOf({ t: 'kung' }, 'nope'), '쿵');
-    assert.equal(gueumOf({ t: 'deok' }, undefined), '덕');
+  test('STROKES: 구음은 문자열, 라벨도 민속악식, 단축키는 겹치지 않는다', () => {
+    for (const def of Object.values(STROKES)) assert.equal(typeof def.gueum, 'string', def.id);
+    assert.equal(STROKES.deok.label, '따');
+    assert.equal(STROKES.kung.label, '궁');
+    assert.equal(STROKES.gideok.label, '기닥');
+    assert.equal(STROKES.ttadeurak.label, '드르닥');
   });
 
-  test('gueumParts: 꾸밈음 타법만 마지막 글자를 크게 나눈다', () => {
-    assert.deepEqual(gueumParts({ t: 'gugung' }, 'minsok'), { small: '구', main: '궁' });
-    assert.deepEqual(gueumParts({ t: 'ttadeurak' }), { small: '따드', main: '락' });
-    assert.deepEqual(gueumParts({ t: 'gideok' }, 'minsok'), { small: '기', main: '닥' });
+  test('새 타법 gudeong·deureudaktta: 존재, 플래그, 단축키 유일', () => {
+    const g = STROKES.gudeong;
+    assert.ok(g.gung && g.chae);
+    assert.equal(g.grace, 1);
+    assert.equal(g.small, 1);
+    assert.ok(!g.tail);
+    const d = STROKES.deureudaktta;
+    assert.ok(!d.gung && d.chae && !d.rim);
+    assert.equal(d.grace, 2);
+    assert.equal(d.small, 2);
+    assert.equal(d.tail, 1);
+    const keys = Object.values(STROKES).map((x) => x.key);
+    assert.equal(new Set(keys).size, keys.length);
+    assert.equal(keys.filter((k) => k === g.key).length, 1);
+    assert.equal(keys.filter((k) => k === d.key).length, 1);
+    assert.equal(Object.keys(STROKES).length, 15);
+  });
+
+  test('gueumParts: 기본 구음은 타법의 small 글자 수만큼 작게', () => {
+    assert.deepEqual(gueumParts({ t: 'gugung' }), { small: '구', main: '궁' });
+    assert.deepEqual(gueumParts({ t: 'gideok' }), { small: '기', main: '닥' });
+    assert.deepEqual(gueumParts({ t: 'ttadeurak' }), { small: '드르', main: '닥' });
+    assert.deepEqual(gueumParts({ t: 'byeondeurak' }), { small: '드르', main: '닥' });
+    assert.deepEqual(gueumParts({ t: 'deureudaktta' }), { small: '드르', main: '닥따' });
+    assert.deepEqual(gueumParts({ t: 'gudeong' }), { small: '구', main: '덩' });
+    assert.deepEqual(gueumParts({ t: 'deureudeong' }), { small: '드르', main: '덩' });
+  });
+
+  test('gueumParts: 덮어쓴 구음 — 글자 수가 같으면 같은 자리, 다르면 마지막 글자만 크게', () => {
+    assert.deepEqual(gueumParts({ t: 'gideok', g: '기떡' }), { small: '기', main: '떡' });
+    assert.deepEqual(gueumParts({ t: 'ttadeurak', g: '따드닥' }), { small: '따드', main: '닥' });
     assert.deepEqual(gueumParts({ t: 'gugung', g: '구구궁' }), { small: '구구', main: '궁' });
-    // grace가 없는 타법은 여러 글자여도 나누지 않는다
+    assert.deepEqual(gueumParts({ t: 'deureudaktta', g: '드르딱' }), { small: '드르', main: '딱' });
+    assert.deepEqual(gueumParts({ t: 'gudeong', g: '기덩덩' }), { small: '기덩', main: '덩' });
+  });
+
+  test('gueumParts: small이 없는 타법은 여러 글자여도 나누지 않는다', () => {
     assert.deepEqual(gueumParts({ t: 'deoreo' }), { small: '', main: '더러러러' });
     assert.deepEqual(gueumParts({ t: 'deong', g: '기덩' }), { small: '', main: '기덩' });
   });
 
   test('gueumParts: 한 글자 구음과 빈 칸', () => {
     assert.deepEqual(gueumParts({ t: 'gugung', g: '궁' }), { small: '', main: '궁' });
-    assert.deepEqual(gueumParts({ t: 'kung' }, 'samul'), { small: '', main: '궁' });
+    assert.deepEqual(gueumParts({ t: 'kung' }), { small: '', main: '궁' });
     assert.deepEqual(gueumParts(null), { small: '', main: '' });
     assert.deepEqual(gueumParts({ t: 'rest' }), { small: '', main: '' });
   });
@@ -818,17 +856,72 @@ describe('민속악 확장: 칸별 구음·새 타법·meter.slots·tempoMax', (
     assert.equal(createSection({ meter: { beats: 2 }, tempo: 80, tempoMax: 120 }).tempoMax, 120);
   });
 
-  test("normalizeScore: symbolStyle은 'minsok'만 인정", () => {
-    assert.equal(normalizeScore({ sections: [sec()], settings: { symbolStyle: 'minsok' } }).settings.symbolStyle, 'minsok');
-    assert.equal(normalizeScore({ sections: [sec()], settings: { symbolStyle: 'x' } }).settings.symbolStyle, 'jeongak');
-    assert.equal(normalizeScore({ sections: [sec()] }).settings.symbolStyle, 'jeongak');
+  test('normalizeScore: view 유지, 옛 symbolStyle·gueumStyle은 버린다', () => {
+    const sc = normalizeScore({ sections: [sec()], settings: { view: 'combined', gueumStyle: 'minsok', symbolStyle: 'minsok' } });
+    assert.deepEqual(sc.settings, { view: 'combined', showGueum: true });
+    assert.equal(normalizeScore({ sections: [sec()], settings: { view: 'staff' } }).settings.view, 'staff');
+    assert.equal(normalizeScore({ sections: [sec()], settings: { view: 'vertical' } }).settings.view, 'vertical');
+    assert.equal(normalizeScore({ sections: [sec()] }).settings.view, 'combined');
   });
 
-  test("normalizeScore: view 'combined'·gueumStyle 'minsok' 유지", () => {
-    const sc = normalizeScore({ sections: [sec()], settings: { view: 'combined', gueumStyle: 'minsok' } });
-    assert.equal(sc.settings.view, 'combined');
-    assert.equal(sc.settings.gueumStyle, 'minsok');
-    assert.equal(normalizeScore({ sections: [sec()], settings: { view: 'staff' } }).settings.view, 'staff');
+  test('normalizeScore 옛 파일 변환: deong + g 구덩/기덩 → gudeong(강세 유지)', () => {
+    const s = sec();
+    s.measures[0].beats = [{ units: null, slots: [{ t: 'deong', g: '구덩', accent: true }, { t: 'deong', g: ' 기덩 ' }, { t: 'deong', g: '더덩' }] }];
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots;
+    assert.deepEqual(out[0], { t: 'gudeong', accent: true });
+    assert.deepEqual(out[1], { t: 'gudeong' });
+    assert.deepEqual(out[2], { t: 'deong', g: '더덩' });
+  });
+
+  test('normalizeScore 옛 파일 변환: ttadeurak·byeondeurak + g 따드락 → g 제거(기본 구음이 드르닥)', () => {
+    const s = sec();
+    s.measures[0].beats = [{ units: null, slots: [{ t: 'ttadeurak', g: '따드락' }, { t: 'byeondeurak', g: '따드락', accent: true }, { t: 'ttadeurak', g: '따드닥' }] }];
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots;
+    assert.deepEqual(out[0], { t: 'ttadeurak' });
+    assert.deepEqual(out[1], { t: 'byeondeurak', accent: true });
+    assert.deepEqual(out[2], { t: 'ttadeurak', g: '따드닥' });
+  });
+
+  test('normalizeScore 옛 파일 변환: 기본 구음과 같은 g는 제거, 다르면 유지', () => {
+    const s = sec();
+    s.measures[0].beats = [{ units: null, slots: [{ t: 'kung', g: '궁' }, { t: 'deok', g: '따' }, { t: 'gideok', g: '기닥' }, { t: 'deok', g: '딱' }] }];
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots;
+    assert.deepEqual(out[0], { t: 'kung' });
+    assert.deepEqual(out[1], { t: 'deok' });
+    assert.deepEqual(out[2], { t: 'gideok' });
+    assert.deepEqual(out[3], { t: 'deok', g: '딱' });
+  });
+
+  test('normalizeScore: 새 타법 gudeong·deureudaktta는 그대로 읽힌다', () => {
+    const s = sec();
+    s.measures[0].beats = [{ units: null, slots: [{ t: 'gudeong', accent: true }, { t: 'deureudaktta' }, { t: 'deureudaktta', g: '드르닥딱' }] }];
+    const out = normalizeScore({ sections: [s] }).sections[0].measures[0].beats[0].slots;
+    assert.deepEqual(out[0], { t: 'gudeong', accent: true });
+    assert.deepEqual(out[1], { t: 'deureudaktta' });
+    assert.deepEqual(out[2], { t: 'deureudaktta', g: '드르닥딱' });
+  });
+
+  test('옛 banju 스타일로 저장된 파일이 오류 없이 열린다(view 유지, 옛 설정 버림, 구음 변환)', () => {
+    const old = {
+      version: 1, title: '옛 파일',
+      settings: { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true },
+      sections: [{
+        id: 's1', name: '', jangdan: '자진모리',
+        meter: { beats: 6, division: 2, grouping: null },
+        tempo: 80,
+        measures: [{
+          id: 'm1', repeat: 1,
+          beats: ['deong', 'kung', 'deok', 'gideok', 'deoreo', 'deong'].map((t, i) => ({ units: null, slots: [i === 5 ? { t, g: '구덩', accent: true } : { t }] })),
+        }],
+      }],
+    };
+    const sc = deserialize(JSON.stringify(old));
+    assert.deepEqual(sc.settings, { view: 'vertical', showGueum: true });
+    const slots = sc.sections[0].measures[0].beats.map((b) => b.slots[0]);
+    assert.deepEqual(slots.map((x) => x.t), ['deong', 'kung', 'deok', 'gideok', 'deoreo', 'gudeong']);
+    assert.equal(slots[5].accent, true);
+    assert.deepEqual(slots.map((x) => gueumOf(x)), ['덩', '궁', '따', '기닥', '더러러러', '구덩']);
+    assert.ok(buildTimeline(sc).strokes.length === 6);
   });
 
   test('normalizeScore: slot.g는 앞뒤 공백 제거·8자 제한, 빈 값·문자열 아님은 버린다', () => {

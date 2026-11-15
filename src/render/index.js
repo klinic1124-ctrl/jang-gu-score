@@ -34,7 +34,7 @@ const STYLE = `
 .jg-tab-beat { stroke: var(--jg-ink, #111); stroke-width: 1.1; }
 .jg-tab-row { stroke: var(--jg-ink, #111); stroke-width: 1; }
 .jg-tab-sub { stroke: var(--jg-line, #555); stroke-width: .7; stroke-opacity: .5; }
-.jg-staff, .jg-header, .jg-table, .jg-memo { pointer-events: none; }
+.jg-staff, .jg-header, .jg-table { pointer-events: none; }
 .jg-slot { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
 .jg-slot.is-playing { fill: var(--jg-play, #ffb02e); fill-opacity: .32; }
 .jg-slot.is-selected { fill: var(--jg-select, #2f6bff); fill-opacity: .2; stroke: var(--jg-select, #2f6bff); stroke-width: 1.5; }

@@ -40,19 +40,6 @@
 
         <div class="group" role="group" aria-label="구음">
           <label class="check"><input type="checkbox" id="opt-gueum"> 구음</label>
-          <select id="opt-gueum-style" aria-label="구음 체계">
-            <option value="banju">반주식 (덩·덕·쿵)</option>
-            <option value="samul">사물놀이식 (덩·따·궁)</option>
-            <option value="minsok">민속악식 (덩·궁·따·떡·국)</option>
-          </select>
-        </div>
-
-        <div class="group" role="group" aria-label="부호 체계">
-          <label for="opt-symbol" class="muted">부호</label>
-          <select id="opt-symbol" title="부호 체계 — 민속악식을 고르면 구음도 민속악식으로 바뀝니다">
-            <option value="jeongak">정악식</option>
-            <option value="minsok">민속악식</option>
-          </select>
         </div>
 
         <div class="group" role="group" aria-label="확대">
@@ -80,16 +67,19 @@
     <div class="palette" role="toolbar" aria-label="타법 입력">
       <div class="palette-strokes" id="palette-strokes"></div>
       <span class="divider" aria-hidden="true"></span>
-      <button type="button" class="pal-btn" data-action="accent" id="btn-accent" aria-pressed="false" title="강세 붙이기/떼기 (.)">
-        <span class="pal-label">강세</span><kbd>.</kbd>
-      </button>
-      <button type="button" class="pal-btn" data-action="clear" title="칸 비우기 (Backspace / Delete)">
-        <span class="pal-label">비우기</span><kbd>⌫</kbd>
-      </button>
-      <span class="divider" aria-hidden="true"></span>
-      <div class="division" role="group" aria-label="분박 — 선택한 박의 칸 수">
-        <span class="division-title">분박</span>
-        <div id="palette-division"></div>
+      <div class="palette-side">
+        <div class="palette-row">
+          <button type="button" class="pal-btn" data-action="accent" id="btn-accent" aria-pressed="false" title="강세 붙이기/떼기 (.)">
+            <span class="pal-label">강세</span><kbd>.</kbd>
+          </button>
+          <button type="button" class="pal-btn" data-action="clear" title="칸 비우기 (Backspace / Delete)">
+            <span class="pal-label">비우기</span><kbd>⌫</kbd>
+          </button>
+        </div>
+        <div class="division" role="group" aria-label="분박 — 선택한 박의 칸 수">
+          <span class="division-title">분박</span>
+          <div id="palette-division"></div>
+        </div>
       </div>
     </div>
 
@@ -222,9 +212,6 @@
             <label class="field"><span>빠르기 (박/분)</span><input type="number" id="sd-tempo" min="10" max="400" value="60" required></label>
             <label class="field"><span>장단 수</span><input type="number" id="sd-measures" min="1" max="200" value="4" required></label>
           </div>
-          <label class="check" id="sd-textbook-row" title="보기를 리듬보+표, 부호·구음을 민속악식으로 맞춥니다">
-            <input type="checkbox" id="sd-textbook"> 교재식 표기로 보기 (리듬보+표, 민속악식)
-          </label>
           <p class="hint" id="sd-info"></p>
         </div>
         <div class="col">
@@ -319,16 +306,16 @@
         <section>
           <h3>타법(부호)</h3>
           <table class="help-table" id="help-strokes">
-            <thead><tr><th>정악식</th><th>민속악식</th><th>이름</th><th>구음 (반주 / 사물 / 민속)</th><th>키</th><th>설명</th></tr></thead>
+            <thead><tr><th>부호</th><th>이름</th><th>구음</th><th>키</th><th>설명</th></tr></thead>
             <tbody></tbody>
           </table>
-          <p class="hint">한글 입력 상태에서도 단축키가 동작합니다. 빈 칸은 앞 소리가 이어지는 자리입니다. 부호 체계는 도구 막대의 “부호”에서 고릅니다.</p>
+          <p class="hint">한글 입력 상태에서도 단축키가 동작합니다. 빈 칸은 앞 소리가 이어지는 자리입니다.</p>
         </section>
         <section>
           <h3>단축키</h3>
           <table class="help-table keys">
             <tbody>
-              <tr><td><kbd>D</kbd> <kbd>K</kbd> <kbd>J</kbd> <kbd>G</kbd> <kbd>R</kbd> <kbd>E</kbd> <kbd>S</kbd><br><kbd>T</kbd> <kbd>U</kbd> <kbd>F</kbd> <kbd>V</kbd> <kbd>W</kbd></td><td>선택한 칸에 타법 입력 (위 표의 키)</td></tr>
+              <tr><td><kbd>D</kbd> <kbd>A</kbd> <kbd>W</kbd> <kbd>K</kbd> <kbd>U</kbd> <kbd>Q</kbd><br><kbd>J</kbd> <kbd>G</kbd> <kbd>F</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>T</kbd> <kbd>R</kbd> <kbd>E</kbd> <kbd>S</kbd></td><td>선택한 칸에 타법 입력 (위 표의 키)</td></tr>
               <tr><td><kbd>F2</kbd> / <kbd>'</kbd></td><td>선택한 칸의 구음 직접 쓰기 — <kbd>Enter</kbd>로 확정, <kbd>Esc</kbd>로 취소, 비우면 기본 구음. 같은 타법을 다시 입력하면 지워집니다</td></tr>
               <tr><td><kbd>.</kbd></td><td>강세 붙이기/떼기</td></tr>
               <tr><td><kbd>Backspace</kbd> <kbd>Delete</kbd></td><td>칸 비우기</td></tr>
@@ -355,7 +342,8 @@
           <ul class="help-list">
             <li>작업 내용은 이 브라우저에 자동으로 저장됩니다. 다른 컴퓨터로 옮기려면 <b>저장</b>으로 파일(.janggu.json)을 받아 두세요.</li>
             <li><b>리듬보+표</b>는 교재처럼 한 단을 “위: 한 줄 리듬보, 아래: 부호 줄과 구음 줄의 표”로 보여 줍니다. 장단 아래의 메모(패널 “장단 → 메모”)도 함께 나오며, 메모를 누르면 바로 고칠 수 있습니다.</li>
-            <li>부호는 <b>정악식</b>과 <b>민속악식</b> 두 가지로 볼 수 있습니다. 새 악보나 구간 추가에서 ‘산조·민요 반주’ 장단을 고르면 “교재식 표기로 보기”가 기본으로 켜집니다.</li>
+            <li>부호와 구음은 산조·민요 반주 교재의 민속악식 표기입니다. 팔레트 버튼의 이름이 악보에 적히는 구음과 같습니다.</li>
+            <li><b>드르닥따</b>는 한 칸 안에 드르닥과 따를 이어 치는 타법입니다. <b>떡</b>(⊗에 가로선)은 채편 변죽을 막아 치고, <b>국</b>(⊗)은 북편을 반쯤 막아 칩니다.</li>
             <li>구간 설정에서 빠르기 범위(예: ♩=100~120)와 새 장단의 박당 기본 칸 수를 정할 수 있습니다. 재생은 앞의 빠르기 값으로 합니다.</li>
             <li>구간 머리말(구간 이름)을 누르면 그 구간의 이름과 빠르기를 바꿀 수 있습니다.</li>
             <li><b>인쇄</b>를 누르면 크기(배율)와 용지 방향을 정할 수 있고, 배율을 줄이면 한 줄에 장단이 더 들어갑니다. 인쇄 대화상자에서 대상을 “PDF로 저장”으로 고르면 PDF 파일을 만들 수 있습니다.</li>

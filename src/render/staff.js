@@ -2,11 +2,11 @@
 // 채편 소리는 기둥 위, 궁편 소리는 기둥 아래, 덩은 둘 다. 가로 위치는 시간에 비례한다.
 // 음표 풀이·그리기는 notes.js(교재식 보기와 공용).
 
-import { beatUnits } from '../model.js';
+import { beatUnits, gueumParts } from '../model.js';
 import { el, text, line, slotRect, measureGroup, chunkBeats, groupBoundaries, gueumText } from './svg.js';
 import { drawSectionHead } from './head.js';
 import { RX, STEM, analyzeBeat, drawBeat, timeSig, drawTimeSig, attackGap } from './notes.js';
-import { displayParts } from './strokes.js';
+import { tailOf } from './strokes.js';
 
 const PAD = 6;            // 마디 시작 여백
 const HEAD = 9;           // 분박 칸 시작에서 음표 머리 중심까지
@@ -16,7 +16,7 @@ const TS_W = 26;          // 박자표 폭
 // ---------------- 구간 ----------------
 
 /** 8분음표당 폭: 이웃 타점 사이가 충분히 벌어지고(기덕은 꾸밈음 자리까지) 클릭 칸이 너무 좁지 않게. */
-function unitWidth(sec, style) {
+function unitWidth(sec) {
   let ppu = 28;
   for (const mea of sec.measures) {
     let t = 0;
@@ -28,8 +28,13 @@ function unitWidth(sec, style) {
       beat.slots.forEach((sl, i) => {
         if (!sl) return;
         const at = t + i * a;
-        if (prev !== null) ppu = Math.max(ppu, attackGap(sl, style) / (at - prev));
+        if (prev !== null) ppu = Math.max(ppu, attackGap(sl) / (at - prev));
         prev = at;
+        const n = tailOf(sl);
+        if (n) { // 같은 칸 안에서 뒤따르는 타점
+          ppu = Math.max(ppu, 17 / (a / (n + 1)));
+          prev = at + (a * n) / (n + 1);
+        }
       });
       t += U;
     }
@@ -43,7 +48,7 @@ export function renderStaff(parent, ctx, sec, s, y) {
   const bounds = groupBoundaries(sec.meter);
   y += drawSectionHead(parent, sec, s, margin, y) + 2;
 
-  const ppu = unitWidth(sec, settings.gueumStyle);
+  const ppu = unitWidth(sec);
   const avail = width - margin * 2;
 
   // 장단을 줄에 놓을 조각(너무 긴 장단은 묶음/박 경계에서 나눔)
@@ -92,12 +97,11 @@ export function renderStaff(parent, ctx, sec, s, y) {
       for (let b = it.b0; b < it.b1; b += 1) {
         const beat = mea.beats[b];
         if (b > it.b0 && bounds.has(b)) line(g, bx, lineY - 18, bx, lineY + 18, 'jg-rule-dash');
-        const info = analyzeBeat(sec, beat, settings.gueumStyle);
+        const info = analyzeBeat(sec, beat);
         const bx0 = bx;
         if (!blank) drawBeat(g, info, (t) => bx0 + t * ppu + HEAD, lineY, {
-          style: settings.gueumStyle,
           onAttack: gue ? (slot, hx) => {
-            const parts = displayParts(slot, settings.gueumStyle);
+            const parts = gueumParts(slot);
             if (parts.small || parts.main) gueums.push({ x: hx, parts });
           } : null,
         });

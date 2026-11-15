@@ -178,7 +178,10 @@ kbd {
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
 }
-.palette-strokes { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 520px; min-width: 0; }
+.palette-strokes { display: flex; flex-wrap: wrap; gap: 6px 16px; flex: 1 1 560px; min-width: 0; }
+.pal-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.palette-side { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.palette-row { display: flex; gap: 6px; }
 .divider { width: 1px; align-self: stretch; background: var(--border); }
 
 .pal-btn {

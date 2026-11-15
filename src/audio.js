@@ -80,10 +80,12 @@ function graceLeads(def) {
 
 /**
  * 타법 하나를 when(컨텍스트 시각)에 합성한다. 재생·미리듣기·오프라인 렌더 공용.
- * 타법 플래그로 처리: gung/chae = 치는 편, rim = 채편 변죽 음색, grace = 앞 꾸밈음 개수, roll/soft = 굴림·약하게, mute = 북편 반뮤트.
- * opts: accent, dur(이 타점의 길이, 굴림용), notBefore(꾸밈음이 이 시각보다 앞서지 않게)
+ * 타법 플래그로 처리: gung/chae = 치는 편, rim = 채편 변죽 음색, grace = 앞 꾸밈음 개수(1개이고 북편을 치면 북편 꾸밈, 그 밖은 채편 꾸밈),
+ * roll/soft = 굴림·약하게, mute = 북편 반뮤트, tail = 본 타점 뒤 칸 길이의 절반 시점에 채편을 한 번 더.
+ * opts: accent, dur(이 타점의 길이, 굴림용), notBefore(꾸밈음이 이 시각보다 앞서지 않게),
+ *       slotDur(원래 칸 한 개의 길이 — tail 시점 계산용. 없으면 0.36초로 보고 약 0.18초 뒤)
  */
-export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0.25, notBefore = 0 } = {}) {
+export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0.25, notBefore = 0, slotDur = 0.36 } = {}) {
   const def = Object.hasOwn(STROKES, strokeId) ? STROKES[strokeId] : null;
   if (!def || strokeId === 'rest') return;
   const vol = accent ? 1.5 : 1;
@@ -98,8 +100,8 @@ export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0
     return;
   }
   const strike = def.rim ? rim : chae;
-  // 꾸밈음: 북편만 치는 타법(구궁)은 약한 북소리, 그 밖은 약한 채편(변죽이면 변죽)
-  const graceGung = def.gung && !def.chae;
+  // 꾸밈음: 꾸밈음이 1개이고 북편을 치는 타법(구궁·구덩)은 약한 북소리, 그 밖은 약한 채편(변죽이면 변죽)
+  const graceGung = def.grace === 1 && def.gung;
   if (def.grace) {
     for (const lead of graceLeads(def)) {
       const graceAt = Math.max(when - lead, notBefore);
@@ -111,6 +113,10 @@ export function synthStroke(ctx, dest, strokeId, when, { accent = false, dur = 0
   if (def.mute) guk(ctx, dest, when, vol);
   else if (def.gung) gung(ctx, dest, when, def.chae ? vol * 0.85 : vol);
   if (def.chae) strike(ctx, dest, when, (def.soft ? 0.35 : 1) * (def.gung ? vol * 0.85 : vol));
+  if (def.tail) {
+    const gap = Math.max(slotDur, 0.04) / 2;
+    for (let k = 1; k <= def.tail; k += 1) strike(ctx, dest, when + gap * k, def.gung ? vol * 0.85 : vol);
+  }
 }
 
 /** 메트로놈 클릭(짧은 우드블록). first면 높은 소리. */
@@ -153,6 +159,7 @@ export class Player {
     const bus = ctx.createGain(); // 이번 재생 전용 — 끊으면 예약된 소리가 모두 사라진다
     bus.connect(this.master);
     const startAt = ctx.currentTime + START_DELAY;
+    const slotDurOf = new Map(tl.slots.map((sl) => [`${sl.pos.s}.${sl.pos.m}.${sl.pos.b}.${sl.pos.i}`, sl.dur]));
     const run = { bus, timer: 0, onPosition };
     this._run = run;
 
@@ -177,7 +184,8 @@ export class Player {
       for (;;) {
         for (; iStroke < tl.strokes.length && offset + tl.strokes[iStroke].time < horizon; iStroke += 1) {
           const s = tl.strokes[iStroke];
-          synthStroke(ctx, bus, s.t, offset + s.time, { accent: s.accent, dur: s.dur, notBefore: startAt });
+          const slotDur = slotDurOf.get(`${s.pos.s}.${s.pos.m}.${s.pos.b}.${s.pos.i}`) ?? s.dur;
+          synthStroke(ctx, bus, s.t, offset + s.time, { accent: s.accent, dur: s.dur, notBefore: startAt, slotDur });
         }
         for (; iSlot < tl.slots.length && offset + tl.slots[iSlot].time < horizon; iSlot += 1) {
           posQueue.push({ at: offset + tl.slots[iSlot].time, pos: tl.slots[iSlot].pos });

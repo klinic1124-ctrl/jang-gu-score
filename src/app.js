@@ -15,10 +15,7 @@ const SCORE_KEY = 'janggu-score/score';
 const OPTS_KEY = 'janggu-score/options';
 const CUSTOM = '__custom';
 const ZOOMS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2];
-const GOBEOP = '산조·민요 반주';
-// 교재식 표기: 리듬보+표, 민속악식 부호·구음
-const TEXTBOOK_LOOK = { view: 'combined', symbolStyle: 'minsok', gueumStyle: 'minsok', showGueum: true };
-const isPlainLook = (st) => st.view === 'vertical' && st.symbolStyle === 'jeongak';
+const DEFAULT_PRESET = 'gobeop-jajinmori';
 // PNG·인쇄용 색(종이 위 먹색). 페이지 CSS가 없는 SVG 단독 그림에서도 같은 색이 되도록 넘긴다.
 const EXPORT_VARS = {
   '--jg-ink': '#1f1c18', '--jg-line': '#8f8778', '--jg-paper': '#ffffff',
@@ -42,14 +39,13 @@ const history = new History(300);
 const player = new Player();
 let svg = null;          // 지금 화면의 악보 SVG
 let renderWidth = 0;     // 마지막으로 renderScore에 넘긴 폭
-let paletteStyle = '';   // 팔레트 부호 그림이 그려진 부호 체계
 
 // ---------- 시작 ----------
 
 function defaultScore() {
-  const dodri = PRESETS.find((p) => p.name === '도드리') ?? PRESETS[0];
-  if (!dodri) return createScore({ title: '새 악보' });
-  const sec = buildPresetSection(dodri.id, { variant: 0, measures: 4, fill: 'first', tempo: dodri.tempo });
+  const base = getPreset(DEFAULT_PRESET) ?? PRESETS[0];
+  if (!base) return createScore({ title: '새 악보' });
+  const sec = buildPresetSection(base.id, { variant: 0, measures: 4, fill: 'first', tempo: base.tempo });
   return createScore({ title: '새 악보', sections: [sec] });
 }
 
@@ -58,7 +54,8 @@ function init() {
   const saved = io.storageGet(SCORE_KEY);
   if (saved) {
     try { state.score = deserialize(saved); } catch { state.score = null; }
-    if (!state.score) setTimeout(() => toast('저장된 악보를 읽지 못해 기본 악보로 시작합니다.'), 0);
+    if (state.score) saveNow(); // 옛 형식이면 지금 형식으로 바꿔 다시 저장
+    else setTimeout(() => toast('저장된 악보를 읽지 못해 기본 악보로 시작합니다.'), 0);
   }
   if (!state.score) {
     state.score = defaultScore();
@@ -288,7 +285,7 @@ function setGueum(text) {
   edit((sc) => {
     const slot = getSlot(sc, pos);
     if (!slot || slot.t === 'rest') return;
-    if (g && g !== gueumOf({ t: slot.t }, sc.settings.gueumStyle)) slot.g = g; else delete slot.g;
+    if (g && g !== gueumOf({ t: slot.t })) slot.g = g; else delete slot.g;
   });
 }
 
@@ -571,10 +568,6 @@ function updateUi() {
   $('#btn-redo').disabled = !history.canRedo;
   for (const r of document.querySelectorAll('input[name="view"]')) r.checked = r.value === sc.settings.view;
   $('#opt-gueum').checked = sc.settings.showGueum;
-  $('#opt-gueum-style').value = sc.settings.gueumStyle;
-  $('#opt-gueum-style').disabled = !sc.settings.showGueum;
-  $('#opt-symbol').value = sc.settings.symbolStyle;
-  if (paletteStyle !== sc.settings.symbolStyle) fillPaletteSymbols();
   $('#zoom-label').textContent = `${Math.round(state.opts.zoom * 100)}%`;
   $('#opt-tempo').value = Math.round(state.opts.tempoScale * 100);
   $('#tempo-label').textContent = `${Math.round(state.opts.tempoScale * 100)}%`;
@@ -597,7 +590,7 @@ function updateUi() {
   const gin = $('#slot-gueum');
   const hasStroke = !!slot && slot.t !== 'rest';
   gin.disabled = !hasStroke;
-  gin.placeholder = hasStroke ? gueumOf({ t: slot.t }, sc.settings.gueumStyle) : '';
+  gin.placeholder = hasStroke ? gueumOf({ t: slot.t }) : '';
   if (document.activeElement !== gin) gin.value = slot?.g ?? '';
   const memo = $('#measure-memo');
   if (document.activeElement !== memo) memo.value = mea.memo ?? '';
@@ -651,7 +644,10 @@ function toast(msg, ms = 3000) {
 // ---------- 팔레트·도움말 만들기 ----------
 
 function buildPalette() {
-  $('#palette-strokes').replaceChildren(...STROKE_IDS.map((id) => {
+  // 타법 계열(합장단 / 북편 / 채편 / 쉼)마다 묶어 사이를 띄운다.
+  const family = (st) => (st.gung && st.chae ? 0 : st.gung ? 1 : st.chae ? 2 : 3);
+  const groups = [];
+  for (const id of STROKE_IDS) {
     const st = STROKES[id];
     const b = document.createElement('button');
     b.type = 'button';
@@ -660,9 +656,16 @@ function buildPalette() {
     b.title = `${st.label} — ${st.desc} (${st.key.toUpperCase()})`;
     b.setAttribute('aria-label', `${st.label} 입력, 단축키 ${st.key.toUpperCase()}`);
     b.innerHTML = `<span class="pal-glyph" aria-hidden="true"></span><span class="pal-label">${esc(st.label)}</span><kbd>${esc(st.key.toUpperCase())}</kbd>`;
-    return b;
+    b.querySelector('.pal-glyph').append(glyphFor(id));
+    if (groups.length && groups[groups.length - 1].family === family(st)) groups[groups.length - 1].btns.push(b);
+    else groups.push({ family: family(st), btns: [b] });
+  }
+  $('#palette-strokes').replaceChildren(...groups.map((g) => {
+    const box = document.createElement('div');
+    box.className = 'pal-group';
+    box.append(...g.btns);
+    return box;
   }));
-  fillPaletteSymbols();
   $('#palette-division').replaceChildren(...SLOT_COUNTS.map((n) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -676,31 +679,19 @@ function buildPalette() {
 }
 
 /** 한 타법의 부호 그림(렌더러의 symbolSvg). 그리지 못하면 빈 span. */
-function glyphFor(id, style, size = 24) {
-  try { return symbolSvg(id, style, size); } catch { return document.createElement('span'); }
+function glyphFor(id, size = 24) {
+  try { return symbolSvg(id, size); } catch { return document.createElement('span'); }
 }
 
-/** 팔레트 버튼의 부호 그림을 지금 부호 체계로 다시 그린다. */
-function fillPaletteSymbols() {
-  paletteStyle = state.score.settings.symbolStyle;
-  for (const btn of document.querySelectorAll('.pal-btn.stroke')) {
-    btn.querySelector('.pal-glyph')?.replaceChildren(glyphFor(btn.dataset.stroke, paletteStyle));
-  }
-}
-
-/** 도움말의 부호 표: 정악식·민속악식 두 모양을 모두 보여준다. */
+/** 도움말의 부호 표. */
 function buildHelp() {
-  const tbody = $('#help-strokes tbody');
-  tbody.replaceChildren(...STROKE_IDS.map((id) => {
+  $('#help-strokes tbody').replaceChildren(...STROKE_IDS.map((id) => {
     const st = STROKES[id];
-    const g = (k) => esc(st.gueum[k] || '—');
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td class="glyph-cell"></td><td class="glyph-cell"></td>'
-      + `<td>${esc(st.label)}</td><td>${g('banju')} / ${g('samul')} / ${g('minsok')}</td>`
+    tr.innerHTML = '<td class="glyph-cell"></td>'
+      + `<td>${esc(st.label)}</td><td>${esc(st.gueum || '—')}</td>`
       + `<td><kbd>${esc(st.key.toUpperCase())}</kbd></td><td>${esc(st.desc)}</td>`;
-    const cells = tr.querySelectorAll('.glyph-cell');
-    cells[0].append(glyphFor(id, 'jeongak', 30));
-    cells[1].append(glyphFor(id, 'minsok', 30));
+    tr.querySelector('.glyph-cell').append(glyphFor(id, 30));
     return tr;
   }));
 }
@@ -712,8 +703,6 @@ let sectionDialogMode = 'add';
 function buildPresetOptions() {
   const sel = $('#sd-preset');
   const cats = [...new Set(PRESETS.map((p) => p.category))];
-  const order = [GOBEOP, '정악', '민속악'];
-  cats.sort((a, b) => (order.indexOf(a) + 99) % 99 - (order.indexOf(b) + 99) % 99);
   const groups = cats.map((cat) => {
     const og = document.createElement('optgroup');
     og.label = cat || '기타';
@@ -738,7 +727,7 @@ function openSectionDialog(mode) {
   $('#sd-title').value = isNew ? '' : state.score.title;
   // 구간 추가는 지금 구간의 장단을 기본으로
   const cur = presetFor(state.score.sections[state.sel.s]);
-  $('#sd-preset').value = isNew ? (PRESETS.find((p) => p.name === '도드리')?.id ?? PRESETS[0]?.id ?? CUSTOM) : (cur?.id ?? PRESETS[0]?.id ?? CUSTOM);
+  $('#sd-preset').value = (isNew ? null : cur?.id) ?? getPreset(DEFAULT_PRESET)?.id ?? PRESETS[0]?.id ?? CUSTOM;
   $('#sd-slots').value = 1;
   $('#sd-name').value = '';
   $('#sd-measures').value = 4;
@@ -754,9 +743,6 @@ function onPresetChange() {
   const custom = id === CUSTOM;
   $('#sd-custom-fields').hidden = !custom;
   $('#sd-preset-fields').hidden = custom;
-  // 교재식 표기는 ‘산조·민요 반주’를 고르면 기본으로 켠다(구간 추가는 지금 악보가 기본 모양일 때만)
-  const gobeop = !custom && getPreset(id)?.category === GOBEOP;
-  $('#sd-textbook').checked = gobeop && (sectionDialogMode === 'new' || isPlainLook(state.score.settings));
   if (!custom) {
     const p = getPreset(id);
     $('#sd-variant').replaceChildren(...p.variants.map((v, k) => new Option(v.name || `가락 ${k + 1}`, k)));
@@ -806,7 +792,7 @@ function updateSectionPreview() {
     sec.measures = sec.measures.slice(0, 1);
     sec.name = '';
     const sc = createScore({ title: '', sections: [sec] });
-    sc.settings = { ...state.score.settings, ...($('#sd-textbook').checked ? TEXTBOOK_LOOK : {}) };
+    sc.settings = { ...state.score.settings };
     const width = Math.max(240, box.clientWidth - 16 || 300);
     box.replaceChildren(renderScore(sc, { width }));
     $('#sd-error').textContent = '';
@@ -822,12 +808,11 @@ function submitSectionDialog(e) {
   try { sec = sectionFromDialog(); } catch (err) { $('#sd-error').textContent = err.message; return; }
   if (sectionDialogMode === 'new') {
     const score = createScore({ title: $('#sd-title').value.trim() || '제목 없음', sections: [sec] });
-    score.settings = { ...state.score.settings, ...($('#sd-textbook').checked ? TEXTBOOK_LOOK : {}) };
+    score.settings = { ...state.score.settings };
     replaceScore(score);
     toast('새 악보를 시작했습니다. 이전 악보는 실행 취소로 되돌릴 수 있습니다.', 4000);
   } else {
     const at = state.sel.s + 1;
-    if ($('#sd-textbook').checked) Object.assign(state.score.settings, TEXTBOOK_LOOK);
     edit((sc) => insertSection(sc, at, sec), { sel: { s: at, m: 0, b: 0, i: 0 } });
   }
   $('#dlg-section').close();
@@ -1062,11 +1047,6 @@ function bindEvents() {
     r.addEventListener('change', () => { setSettings({ view: r.value }); revealSelection(); r.blur(); });
   }
   $('#opt-gueum').addEventListener('change', (e) => setSettings({ showGueum: e.target.checked }));
-  $('#opt-symbol').addEventListener('change', (e) => {
-    const symbolStyle = e.target.value;
-    setSettings({ symbolStyle, gueumStyle: symbolStyle === 'minsok' ? 'minsok' : 'banju' });
-    e.target.blur();
-  });
   const gin = $('#slot-gueum');
   gin.addEventListener('change', () => setGueum(gin.value));
   gin.addEventListener('keydown', (e) => {
@@ -1078,7 +1058,6 @@ function bindEvents() {
   $('#measure-memo').addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); $('#score-scroll').focus({ preventScroll: true }); }
   });
-  $('#opt-gueum-style').addEventListener('change', (e) => { setSettings({ gueumStyle: e.target.value }); e.target.blur(); });
   $('#opt-tempo').addEventListener('input', (e) => {
     state.opts.tempoScale = Number(e.target.value) / 100;
     $('#tempo-label').textContent = `${e.target.value}%`;
@@ -1093,7 +1072,7 @@ function bindEvents() {
   // 대화상자
   $('#form-section').addEventListener('submit', submitSectionDialog);
   $('#sd-preset').addEventListener('change', onPresetChange);
-  for (const id of ['#sd-variant', '#sd-fill', '#sd-beats', '#sd-division', '#sd-slots', '#sd-grouping', '#sd-tempo', '#sd-measures', '#sd-textbook']) {
+  for (const id of ['#sd-variant', '#sd-fill', '#sd-beats', '#sd-division', '#sd-slots', '#sd-grouping', '#sd-tempo', '#sd-measures']) {
     $(id).addEventListener('input', updateSectionPreview);
   }
   $('#form-section-edit').addEventListener('submit', submitSectionEdit);
