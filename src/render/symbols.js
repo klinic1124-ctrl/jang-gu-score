@@ -157,9 +157,13 @@ export function drawAccent(parent, x, y, s = 8) {
 export function drawSymbol(parent, slot, cx, cy, s, { accentAt = 'left', span = null, tailX = null } = {}) {
   if (!slot || !GLYPHS[slot.t]) return null;
   const g = el('g', { class: `jg-stroke jg-${slot.t}` }, parent);
-  const left = GLYPHS[slot.t](g, cx, cy, s, { span, tailX });
-  if (slot.accent && accentAt) {
-    const a = Math.max(6, s * 0.5);
+  const a = Math.max(6, s * 0.5);
+  const accent = !!(slot.accent && accentAt);
+  // 칸 폭을 채우는 부호(드르닥따)는 강세 자리를 왼쪽에 남기고 그린다
+  let sp = span;
+  if (accent && span && slot.t === 'deureudaktta') sp = [span[0] + a * (accentAt === 'above' ? 0.4 : 0.8) + 1, span[1]];
+  const left = GLYPHS[slot.t](g, cx, cy, s, { span: sp, tailX });
+  if (accent) {
     const ax = Math.min(cx - s * 0.62, typeof left === 'number' ? left - a * 0.5 - 1 : Infinity);
     if (accentAt === 'above') drawAccent(g, Math.min(cx - s * 0.5, ax + s * 0.12), cy - s * 0.6, a);
     else drawAccent(g, ax, cy, a);

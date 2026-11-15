@@ -69,7 +69,7 @@ export function renderVertical(parent, ctx, sec, s, y) {
         beat.slots.forEach((slot, i) => {
           const cy = by + (i + 0.5) * sh;
           const cx = gue ? x + symW / 2 + 2 : x + colW / 2 + 2; // 왼쪽에 강세 자리
-          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left', span: [x + 6, x + symW - 3] });
+          drawSymbol(g, slot, cx, cy, size, { accentAt: 'left', span: slot?.t === 'deureudaktta' ? [x + 2, x + symW] : [x + 6, x + symW - 3] }); // 드르닥따(卌 ─)는 칸 폭을 더 쓴다
           if (gue && slot) {
             const fs = Math.min(11, Math.max(8, sh * 0.62));
             gueumText(g, x + symW - 2, cy + fs * 0.36, gueumParts(slot), { size: fs, maxWidth: gueW - 5 });

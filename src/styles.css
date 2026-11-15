@@ -243,8 +243,7 @@ kbd {
 .paper svg { display: block; margin: 0 auto; }
 .paper .jg-slot { cursor: pointer; }
 .paper .jg-section-head { cursor: pointer; }
-.paper .jg-memo { pointer-events: bounding-box; cursor: text; }
-.paper .jg-memo * { pointer-events: inherit; }
+.paper .jg-memo { cursor: text; }
 
 .inspector {
   overflow: auto;
@@ -382,6 +381,8 @@ fieldset.custom legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
   .panel + .panel { padding-top: 0; border-top: 0; }
   .brand { display: none; }
   .pal-btn.stroke kbd { display: none; }
+  .palette .divider { display: none; }
+  .palette-side { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
   .pal-btn.stroke { min-height: 34px; }
   .palette { padding: 6px 12px; }
   .two-col { grid-template-columns: minmax(0, 1fr); }
