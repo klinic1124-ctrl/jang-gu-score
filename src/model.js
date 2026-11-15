@@ -6,8 +6,8 @@
 //   settings: {
 //     view: 'vertical' | 'horizontal' | 'staff' | 'combined'
 //                                   세로 정간보 / 가로 정간보 / 한 줄 리듬보 / 리듬보+부호·구음 표(교재식)
-//     symbolStyle: 'jeongak' | 'minsok'           부호 체계. 정악식(⦶ │ ○ …) / 민속악식(⊖ ─ ○ ⊗ …)
-//     gueumStyle: 'banju' | 'samul' | 'minsok'    구음 체계(반주: 덩·덕·쿵 / 사물: 덩·따·궁 / 민속악: 덩·따·궁·떡)
+//                                   부호와 구음은 민속악식(산조·민요 반주 교재식) 한 가지뿐이다.
+//                                   (옛 파일의 symbolStyle·gueumStyle 설정은 읽을 때 버린다)
 //     showGueum: boolean                          부호 옆(아래)에 구음 병기
 //   }
 //   sections: Section[]
@@ -48,22 +48,25 @@ export const SCORE_VERSION = 1;
 
 export const SLOT_COUNTS = [1, 2, 3, 4, 6];
 
-/** 타법(부호) 정의. gung/chae는 어느 편을 치는지, key는 입력 단축키(KeyboardEvent.code 기준 문자). */
+/** 타법(부호) 정의. key는 입력 단축키(KeyboardEvent.code 기준 문자). */
 export const STROKES = {
-  deong:  { id: 'deong',  label: '덩',       gueum: { banju: '덩',       samul: '덩',       minsok: '덩' },       gung: true,  chae: true,  key: 'd', desc: '합장단 — 북편과 채편을 함께' },
-  kung:   { id: 'kung',   label: '쿵',       gueum: { banju: '쿵',       samul: '궁',       minsok: '궁' },       gung: true,  chae: false, key: 'k', desc: '북편' },
-  deok:   { id: 'deok',   label: '덕',       gueum: { banju: '덕',       samul: '따',       minsok: '따' },       gung: false, chae: true,  key: 'j', desc: '채편' },
-  gideok: { id: 'gideok', label: '기덕',     gueum: { banju: '기덕',     samul: '기닥',     minsok: '기닥' },     gung: false, chae: true,  key: 'g', desc: '겹채 — 채편을 꾸밈음과 함께', grace: 1 },
-  deoreo: { id: 'deoreo', label: '더러러러', gueum: { banju: '더러러러', samul: '더르르르', minsok: '더러러러' }, gung: false, chae: true,  key: 'r', desc: '굴림채 — 채를 굴려서', roll: true },
-  deo:    { id: 'deo',    label: '더',       gueum: { banju: '더',       samul: '더',       minsok: '더' },       gung: false, chae: true,  key: 'e', desc: '채편을 약하게 찍어서', soft: true },
-  rest:   { id: 'rest',   label: '쉼',       gueum: { banju: '',         samul: '',         minsok: '' },         gung: false, chae: false, key: 's', desc: '쉼(소리 없음)' },
-  // 아래는 민속악(산조·민요 반주) 교재식 표기에서 쓰는 타법. grace = 앞 꾸밈음 개수, rim = 변죽(채편 가장자리), mute = 반뮤트(⊗는 떡=채편 변죽, 국=북편 반뮤트)
-  tteok:        { id: 'tteok',        label: '떡',     gueum: { banju: '떡',     samul: '떡',     minsok: '떡' },     gung: false, chae: true,  key: 't', desc: '채편 변죽을 막아 치는 소리', rim: true },
-  guk:          { id: 'guk',          label: '국',     gueum: { banju: '국',     samul: '국',     minsok: '국' },     gung: true,  chae: false, key: 'q', desc: '북편을 반쯤 막아 치는 소리(쿵·궁의 반뮤트)', mute: true },
-  gugung:       { id: 'gugung',       label: '구궁',   gueum: { banju: '구궁',   samul: '구궁',   minsok: '구궁' },   gung: true,  chae: false, key: 'u', desc: '겹궁 — 북편을 꾸밈음과 함께', grace: 1 },
-  ttadeurak:    { id: 'ttadeurak',    label: '따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true,  key: 'f', desc: '채편을 짧게 굴려 치기', grace: 2 },
-  byeondeurak:  { id: 'byeondeurak',  label: '변죽 따드락', gueum: { banju: '따드락', samul: '따드락', minsok: '따드락' }, gung: false, chae: true, key: 'v', desc: '채편 변죽을 짧게 굴려 치기', grace: 2, rim: true },
-  deureudeong:  { id: 'deureudeong',  label: '드르덩', gueum: { banju: '드르덩', samul: '드르덩', minsok: '드르덩' }, gung: true,  chae: true,  key: 'w', desc: '채를 굴린 뒤 합장단', grace: 2 },
+  // label = 버튼·도움말에 쓰는 이름, gueum = 악보에 적히는 기본 구음, small = 구음에서 작게 쓰는 앞 글자 수(꾸밈).
+  // gung/chae = 치는 편, grace = 앞 꾸밈음 개수, rim = 채편 변죽, mute = 북편 반뮤트, tail = 같은 칸 안에서 뒤따르는 채편 타점 수.
+  deong:        { id: 'deong',        label: '덩',       gueum: '덩',       gung: true,  chae: true,  key: 'd', desc: '합장단 — 북편과 채편을 함께' },
+  gudeong:      { id: 'gudeong',      label: '구덩',     gueum: '구덩',     gung: true,  chae: true,  key: 'a', desc: '북편 꾸밈음 뒤에 합장단', grace: 1, small: 1 },
+  deureudeong:  { id: 'deureudeong',  label: '드르덩',   gueum: '드르덩',   gung: true,  chae: true,  key: 'w', desc: '채를 굴린 뒤 합장단', grace: 2, small: 2 },
+  kung:         { id: 'kung',         label: '궁',       gueum: '궁',       gung: true,  chae: false, key: 'k', desc: '북편' },
+  gugung:       { id: 'gugung',       label: '구궁',     gueum: '구궁',     gung: true,  chae: false, key: 'u', desc: '겹궁 — 북편을 꾸밈음과 함께', grace: 1, small: 1 },
+  guk:          { id: 'guk',          label: '국',       gueum: '국',       gung: true,  chae: false, key: 'q', desc: '북편을 반쯤 막아 치는 소리(궁의 반뮤트)', mute: true },
+  deok:         { id: 'deok',         label: '따',       gueum: '따',       gung: false, chae: true,  key: 'j', desc: '채편' },
+  gideok:       { id: 'gideok',       label: '기닥',     gueum: '기닥',     gung: false, chae: true,  key: 'g', desc: '겹채 — 채편을 꾸밈음과 함께', grace: 1, small: 1 },
+  ttadeurak:    { id: 'ttadeurak',    label: '드르닥',   gueum: '드르닥',   gung: false, chae: true,  key: 'f', desc: '채편을 짧게 굴려 치기', grace: 2, small: 2 },
+  deureudaktta: { id: 'deureudaktta', label: '드르닥따', gueum: '드르닥따', gung: false, chae: true,  key: 'c', desc: '드르닥에 이어 따를 한 칸 안에', grace: 2, small: 2, tail: 1 },
+  byeondeurak:  { id: 'byeondeurak',  label: '변죽 드르닥', gueum: '드르닥', gung: false, chae: true, key: 'v', desc: '채편 변죽을 짧게 굴려 치기', grace: 2, small: 2, rim: true },
+  tteok:        { id: 'tteok',        label: '떡',       gueum: '떡',       gung: false, chae: true,  key: 't', desc: '채편 변죽을 막아 치는 소리', rim: true },
+  deoreo:       { id: 'deoreo',       label: '더러러러', gueum: '더러러러', gung: false, chae: true,  key: 'r', desc: '굴림채 — 채를 굴려서', roll: true },
+  deo:          { id: 'deo',          label: '더',       gueum: '더',       gung: false, chae: true,  key: 'e', desc: '채편을 약하게 찍어서', soft: true },
+  rest:         { id: 'rest',         label: '쉼',       gueum: '',         gung: false, chae: false, key: 's', desc: '쉼(소리 없음)' },
 };
 
 export const STROKE_IDS = Object.keys(STROKES);
@@ -105,7 +108,7 @@ export function createScore({ title = '제목 없음', author = '', memo = '', s
     title,
     author,
     memo,
-    settings: { view: 'vertical', symbolStyle: 'jeongak', gueumStyle: 'banju', showGueum: true },
+    settings: { view: 'combined', showGueum: true },
     sections: sections ?? [createSection({ name: '', jangdan: '도드리', meter: { beats: 6, division: 2 } })],
   };
 }
@@ -156,21 +159,22 @@ export function beatUnits(section, beat) {
 }
 
 /** 구음 문자열. 칸에 직접 적은 구음(slot.g)이 있으면 그것, 없으면 타법의 기본 구음. 빈 칸은 ''. */
-export function gueumOf(slot, style = 'banju') {
+export function gueumOf(slot) {
   if (!slot) return '';
-  if (slot.g) return slot.g;
-  const g = STROKES[slot.t]?.gueum;
-  return g?.[style] ?? g?.banju ?? '';
+  return slot.g || STROKES[slot.t]?.gueum || '';
 }
 
 /**
- * 구음을 작은 글씨(꾸밈) 부분과 큰 글씨 부분으로 나눈다. 교재식 표기용.
- * 꾸밈음이 있는 타법(grace)은 마지막 글자만 크게: 구궁 → {small:'구', main:'궁'}, 따드락 → {small:'따드', main:'락'}.
+ * 구음을 작은 글씨(꾸밈) 부분과 큰 글씨 부분으로 나눈다.
+ * 기본 구음은 타법의 small 글자 수만큼: 구궁 → {small:'구', main:'궁'}, 드르닥따 → {small:'드르', main:'닥따'}.
+ * 직접 적은 구음은 기본 구음과 글자 수가 같으면 같은 자리에서, 아니면 꾸밈 타법일 때 마지막 글자만 크게.
  */
-export function gueumParts(slot, style = 'banju') {
-  const word = gueumOf(slot, style);
-  if (!slot || !STROKES[slot.t]?.grace || word.length < 2) return { small: '', main: word };
-  return { small: word.slice(0, -1), main: word.slice(-1) };
+export function gueumParts(slot) {
+  const word = gueumOf(slot);
+  const def = slot && STROKES[slot.t];
+  if (!def || !def.small || word.length < 2) return { small: '', main: word };
+  const n = word.length === def.gueum.length ? def.small : word.length - 1;
+  return { small: word.slice(0, n), main: word.slice(n) };
 }
 
 /** 위치가 악보 범위 안에 들도록 보정한다. */
@@ -299,9 +303,7 @@ export function normalizeScore(data) {
     author: String(data.author ?? ''),
     memo: String(data.memo ?? ''),
     settings: {
-      view: ['vertical', 'horizontal', 'staff', 'combined'].includes(data.settings?.view) ? data.settings.view : 'vertical',
-      symbolStyle: data.settings?.symbolStyle === 'minsok' ? 'minsok' : 'jeongak',
-      gueumStyle: ['samul', 'minsok'].includes(data.settings?.gueumStyle) ? data.settings.gueumStyle : 'banju',
+      view: ['vertical', 'horizontal', 'staff', 'combined'].includes(data.settings?.view) ? data.settings.view : 'combined',
       showGueum: data.settings?.showGueum !== false,
     },
     sections: data.sections.map((sec) => {
@@ -333,12 +335,15 @@ export function normalizeScore(data) {
                 slots: beat.slots.map((slot) => {
                   if (!slot) return null;
                   if (!STROKES[slot.t]) throw new Error(`알 수 없는 타법: ${slot.t}`);
-                  // 옛 파일: ⊗(떡·쿵)에 구음만 '국'으로 덮어쓴 칸 → 국 타법
-                  const old = (slot.t === 'tteok' || slot.t === 'kung') && typeof slot.g === 'string' && slot.g.trim() === '국';
-                  const out = { t: old ? 'guk' : slot.t };
-                  if (slot.accent && slot.t !== 'rest') out.accent = true;
-                  const g = typeof slot.g === 'string' ? slot.g.trim().slice(0, 8) : '';
-                  if (g && !old) out.g = g;
+                  // 옛 파일 변환: 구음만 덮어써서 흉내 내던 칸을 정식 타법으로 바꾸고, 기본 구음과 같아진 구음은 지운다.
+                  const g0 = typeof slot.g === 'string' ? slot.g.trim().slice(0, 8) : '';
+                  let t = slot.t;
+                  if ((t === 'tteok' || t === 'kung') && g0 === '국') t = 'guk';
+                  else if (t === 'deong' && (g0 === '구덩' || g0 === '기덩')) t = 'gudeong';
+                  const out = { t };
+                  if (slot.accent && t !== 'rest') out.accent = true;
+                  const renamed = (t === 'ttadeurak' || t === 'byeondeurak') && g0 === '따드락'; // 따드락 → 드르닥
+                  if (g0 && t === slot.t && !renamed && g0 !== STROKES[t].gueum) out.g = g0;
                   return out;
                 }),
               };
